@@ -1,11 +1,7 @@
-import Staff from "./Staff";
+import Dashboard from "./services/Dashboard";
 
 function App() {
-    return (
-        <div>
-            <Staff />
-        </div>
-    );
+    return <Dashboard />;
 }
 
 export default App;

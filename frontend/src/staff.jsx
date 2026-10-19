@@ -173,57 +173,16 @@ function Staff() {
     ).length;
 
     return (
-        <div className="min-h-screen bg-slate-100 text-slate-800">
+        <div className="min-h-screen bg-white text-slate-800">
             <div className="flex min-h-screen">
 
-                {/* Sidebar */}
-                <aside className="hidden w-64 shrink-0 bg-slate-900 p-6 text-white md:block">
-                    <h1 className="mb-10 text-2xl font-bold">
-                        Staff<span className="text-blue-400">Hub</span>
-                    </h1>
-
-                    <nav className="space-y-3">
-                        <a
-                            href="#dashboard"
-                            className="block rounded-lg bg-blue-600 px-4 py-3 font-medium"
-                        >
-                            Dashboard
-                        </a>
-
-                        <a
-                            href="#staff"
-                            className="block rounded-lg px-4 py-3 text-slate-300 transition hover:bg-slate-800 hover:text-white"
-                        >
-                            Staff Records
-                        </a>
-                    </nav>
-
-                    <p className="mt-12 text-sm text-slate-400">
-                        Staff Management System
-                    </p>
-                </aside>
-
                 {/* Main content */}
-                <main id="dashboard" className="min-w-0 flex-1 p-4 sm:p-8">
-                    <header className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-                        <div>
-                            <p className="text-sm font-medium text-blue-600">
-                                MANAGEMENT / STAFF
-                            </p>
-
-                            <h2 className="mt-2 text-3xl font-bold text-slate-900">
-                                Staff Management
-                            </h2>
-
-                            <p className="mt-2 text-slate-500">
-                                Add, edit, search and manage your staff records.
-                            </p>
-                        </div>
-
+                <main id="dashboard" className="min-w-0 flex-1 p-3 sm:p-4">
+                    <header className="mb-4 flex justify-end">
                         <button
                             type="button"
                             onClick={handleAdd}
-                            className="rounded-lg bg-blue-600 px-5 py-3 font-semibold text-white shadow-sm transition hover:bg-blue-700"
+                            className="rounded-lg bg-[#800000] px-5 py-3 font-semibold text-white shadow-sm transition hover:bg-[#650000]"
                         >
                             + Add Staff
                         </button>
@@ -280,7 +239,7 @@ function Staff() {
                                 placeholder="Search staff..."
                                 value={search}
                                 onChange={(event) => setSearch(event.target.value)}
-                                className="w-full rounded-lg border border-slate-300 px-4 py-2 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 sm:max-w-xs"
+                                className="w-full rounded-lg border border-slate-300 px-4 py-2 outline-none transition focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/15 sm:max-w-xs"
                             />
                         </div>
 
@@ -445,7 +404,7 @@ function Staff() {
                                         onChange={handleChange}
                                         placeholder="e.g. EMP002"
                                         required
-                                        className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                                        className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/15"
                                     />
                                 </div>
 
@@ -462,7 +421,7 @@ function Staff() {
                                         value={formData.first_name}
                                         onChange={handleChange}
                                         required
-                                        className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                                        className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/15"
                                     />
                                 </div>
 
@@ -479,7 +438,7 @@ function Staff() {
                                         value={formData.last_name}
                                         onChange={handleChange}
                                         required
-                                        className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                                        className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/15"
                                     />
                                 </div>
 
@@ -497,7 +456,7 @@ function Staff() {
                                         value={formData.email}
                                         onChange={handleChange}
                                         placeholder="employee@example.com"
-                                        className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                                        className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/15"
                                     />
                                 </div>
 
@@ -514,7 +473,7 @@ function Staff() {
                                         value={formData.department}
                                         onChange={handleChange}
                                         placeholder="e.g. IT"
-                                        className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                                        className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/15"
                                     />
                                 </div>
 
@@ -531,7 +490,7 @@ function Staff() {
                                         value={formData.position}
                                         onChange={handleChange}
                                         placeholder="e.g. IT Officer"
-                                        className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                                        className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/15"
                                     />
                                 </div>
 
@@ -547,7 +506,7 @@ function Staff() {
                                         name="employment_status"
                                         value={formData.employment_status}
                                         onChange={handleChange}
-                                        className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                                        className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 outline-none focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/15"
                                     >
                                         <option value="Active">Active</option>
                                         <option value="Inactive">Inactive</option>
@@ -580,7 +539,7 @@ function Staff() {
                                 <button
                                     type="submit"
                                     disabled={saving}
-                                    className="rounded-lg bg-blue-600 px-5 py-3 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                    className="rounded-lg bg-[#800000] px-5 py-3 font-semibold text-white transition hover:bg-[#650000] disabled:cursor-not-allowed disabled:opacity-50"
                                 >
                                     {saving
                                         ? "Saving..."
