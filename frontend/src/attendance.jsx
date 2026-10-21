@@ -1,0 +1,699 @@
+
+import { useEffect, useState } from "react";
+
+const API_URL = "http://localhost:5000/api/attendance";
+const STAFF_URL = "http://localhost:5000/api/staff";
+
+const initialSession = {
+  expires_at: "",
+};
+
+export default function Attendance() {
+  const [records, setRecords] = useState([]);
+  const [staff, setStaff] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+
+  const [search, setSearch] = useState("");
+  const [dateFilter, setDateFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("All");
+
+  const [showSessionForm, setShowSessionForm] = useState(false);
+  const [sessionForm, setSessionForm] = useState(initialSession);
+  const [session, setSession] = useState(null);
+
+  const [showCheckInForm, setShowCheckInForm] = useState(false);
+  const [checkInForm, setCheckInForm] = useState({
+    staff_id: "",
+    qr_token: "",
+  });
+
+  const [editingRecord, setEditingRecord] = useState(null);
+  const [editForm, setEditForm] = useState({
+    status: "Present",
+    remarks: "",
+  });
+
+  useEffect(() => {
+    loadAttendance();
+    loadStaff();
+  }, []);
+
+  async function requestJSON(url, options = {}) {
+    const response = await fetch(url, options);
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(data.message || "The request failed.");
+    }
+
+    return data;
+  }
+
+  async function loadAttendance() {
+    setLoading(true);
+    setError("");
+
+    try {
+      const data = await requestJSON(API_URL);
+
+      setRecords(
+        Array.isArray(data) ? data : data.attendance || []
+      );
+    } catch (err) {
+      setError(err.message || "Unable to load attendance records.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function loadStaff() {
+    try {
+      const data = await requestJSON(STAFF_URL);
+
+      setStaff(Array.isArray(data) ? data : data.staff || []);
+    } catch (err) {
+      console.error("Unable to load staff:", err);
+    }
+  }
+
+  function clearNotifications() {
+    setError("");
+    setMessage("");
+  }
+
+  async function createSession(event) {
+    event.preventDefault();
+    clearNotifications();
+
+    try {
+      const data = await requestJSON(`${API_URL}/sessions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          expires_at: sessionForm.expires_at,
+        }),
+      });
+
+      setSession(data.session);
+      setMessage("QR attendance session created successfully.");
+      setShowSessionForm(false);
+      setSessionForm(initialSession);
+    } catch (err) {
+      setError(err.message || "Unable to create QR session.");
+    }
+  }
+
+  async function closeSession() {
+    if (!session?.id) return;
+
+    clearNotifications();
+
+    try {
+      await requestJSON(`${API_URL}/sessions/${session.id}/close`, {
+        method: "PATCH",
+      });
+
+      setSession(null);
+      setMessage("Attendance session closed successfully.");
+    } catch (err) {
+      setError(err.message || "Unable to close attendance session.");
+    }
+  }
+
+  async function checkIn(event) {
+    event.preventDefault();
+    clearNotifications();
+
+    try {
+      await requestJSON(`${API_URL}/check-in`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          staff_id: Number(checkInForm.staff_id),
+          qr_token: checkInForm.qr_token.trim(),
+        }),
+      });
+
+      setMessage("Staff attendance recorded successfully.");
+      setShowCheckInForm(false);
+      setCheckInForm({ staff_id: "", qr_token: "" });
+      await loadAttendance();
+    } catch (err) {
+      setError(err.message || "Unable to record attendance.");
+    }
+  }
+
+  function openEdit(record) {
+    setEditingRecord(record);
+    setEditForm({
+      status: record.status || "Present",
+      remarks: record.remarks || "",
+    });
+    clearNotifications();
+  }
+
+  async function saveEdit(event) {
+    event.preventDefault();
+    clearNotifications();
+
+    try {
+      await requestJSON(`${API_URL}/${editingRecord.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editForm),
+      });
+
+      setEditingRecord(null);
+      setMessage("Attendance record updated successfully.");
+      await loadAttendance();
+    } catch (err) {
+      setError(err.message || "Unable to update attendance.");
+    }
+  }
+
+  async function deleteRecord(id) {
+    if (!window.confirm("Delete this attendance record?")) return;
+
+    clearNotifications();
+
+    try {
+      await requestJSON(`${API_URL}/${id}`, {
+        method: "DELETE",
+      });
+
+      setMessage("Attendance record deleted successfully.");
+      await loadAttendance();
+    } catch (err) {
+      setError(err.message || "Unable to delete attendance.");
+    }
+  }
+
+  const filteredRecords = records.filter((record) => {
+    const fullName =
+      `${record.first_name || ""} ${record.last_name || ""}`.toLowerCase();
+
+    const searchText = search.toLowerCase();
+
+    const matchesSearch =
+      fullName.includes(searchText) ||
+      String(record.employee_id || "").toLowerCase().includes(searchText) ||
+      String(record.department || "").toLowerCase().includes(searchText);
+
+    const recordDate = String(record.attendance_date || "").slice(0, 10);
+
+    const matchesDate =
+      !dateFilter || recordDate === dateFilter;
+
+    const matchesStatus =
+      statusFilter === "All" || record.status === statusFilter;
+
+    return matchesSearch && matchesDate && matchesStatus;
+  });
+
+  const presentCount = records.filter(
+    (record) => record.status === "Present"
+  ).length;
+
+  const lateCount = records.filter(
+    (record) => record.status === "Late"
+  ).length;
+
+  const absentCount = records.filter(
+    (record) => record.status === "Absent"
+  ).length;
+
+  function formatTime(value) {
+    if (!value) return "—";
+
+    const date = new Date(value);
+
+    return Number.isNaN(date.getTime())
+      ? String(value)
+      : date.toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+  }
+
+  function statusStyle(status) {
+    if (status === "Present") {
+      return "bg-green-100 text-green-700";
+    }
+
+    if (status === "Late") {
+      return "bg-amber-100 text-amber-700";
+    }
+
+    return "bg-red-100 text-red-700";
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-100 p-4 sm:p-6 lg:p-8">
+      <div className="mx-auto max-w-7xl">
+        {/* Header */}
+        <div className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-center">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-wider text-blue-600">
+              Staff Management System
+            </p>
+
+            <h1 className="mt-2 text-3xl font-bold text-slate-800">
+              Attendance Management
+            </h1>
+
+            <p className="mt-2 text-slate-500">
+              Monitor staff attendance, check-in times, and attendance sessions.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            <button
+              onClick={() => {
+                clearNotifications();
+                setShowSessionForm(!showSessionForm);
+                setShowCheckInForm(false);
+              }}
+              className="rounded-lg bg-blue-600 px-4 py-3 font-semibold text-white hover:bg-blue-700"
+            >
+              + Create QR Session
+            </button>
+
+            <button
+              onClick={() => {
+                clearNotifications();
+                setShowCheckInForm(!showCheckInForm);
+                setShowSessionForm(false);
+              }}
+              className="rounded-lg bg-slate-800 px-4 py-3 font-semibold text-white hover:bg-slate-700"
+            >
+              Staff Check-In
+            </button>
+          </div>
+        </div>
+
+        {/* Notifications */}
+        {message && (
+          <div className="mb-5 rounded-lg border border-green-200 bg-green-50 p-4 text-green-700">
+            {message}
+          </div>
+        )}
+
+        {error && (
+          <div className="mb-5 rounded-lg border border-red-200 bg-red-50 p-4 text-red-700">
+            {error}
+          </div>
+        )}
+
+        {/* QR Session Form */}
+        {showSessionForm && (
+          <form
+            onSubmit={createSession}
+            className="mb-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
+          >
+            <h2 className="mb-4 text-xl font-bold text-slate-800">
+              Create QR Attendance Session
+            </h2>
+
+            <label className="mb-2 block text-sm font-semibold text-slate-700">
+              Session expiry date and time
+            </label>
+
+            <input
+              type="datetime-local"
+              required
+              value={sessionForm.expires_at}
+              min={new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
+                .toISOString()
+                .slice(0, 16)}
+              onChange={(event) =>
+                setSessionForm({ expires_at: event.target.value })
+              }
+              className="mb-5 w-full max-w-md rounded-lg border border-slate-300 px-4 py-3"
+            />
+
+            <div>
+              <button
+                type="submit"
+                className="rounded-lg bg-blue-600 px-5 py-3 font-semibold text-white hover:bg-blue-700"
+              >
+                Create Session
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* Session Result */}
+        {session && (
+          <div className="mb-6 rounded-xl border border-blue-200 bg-white p-6 shadow-sm">
+            <h2 className="text-xl font-bold text-slate-800">
+              Active QR Session
+            </h2>
+
+            <p className="mt-2 text-sm text-slate-500">
+              Session ID: {session.id}
+            </p>
+
+            <p className="mt-4 text-sm font-semibold text-slate-700">
+              QR token
+            </p>
+
+            <div className="mt-2 break-all rounded-lg bg-slate-100 p-4 font-mono text-sm text-slate-800">
+              {session.qr_token}
+            </div>
+
+            <p className="mt-3 text-sm text-slate-500">
+              Expires: {session.expires_at}
+            </p>
+
+            <button
+              onClick={closeSession}
+              className="mt-4 rounded-lg bg-red-600 px-4 py-2 font-semibold text-white hover:bg-red-700"
+            >
+              Close Session
+            </button>
+          </div>
+        )}
+
+        {/* Check-In Form */}
+        {showCheckInForm && (
+          <form
+            onSubmit={checkIn}
+            className="mb-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
+          >
+            <h2 className="mb-5 text-xl font-bold text-slate-800">
+              Record Staff Check-In
+            </h2>
+
+            <div className="grid gap-5 md:grid-cols-2">
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-700">
+                  Staff Member
+                </label>
+
+                <select
+                  required
+                  value={checkInForm.staff_id}
+                  onChange={(event) =>
+                    setCheckInForm({
+                      ...checkInForm,
+                      staff_id: event.target.value,
+                    })
+                  }
+                  className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3"
+                >
+                  <option value="">Select staff member</option>
+
+                  {staff.map((member) => (
+                    <option key={member.id} value={member.id}>
+                      {member.first_name} {member.last_name} — {member.employee_id}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-700">
+                  QR Token
+                </label>
+
+                <input
+                  required
+                  value={checkInForm.qr_token}
+                  onChange={(event) =>
+                    setCheckInForm({
+                      ...checkInForm,
+                      qr_token: event.target.value,
+                    })
+                  }
+                  placeholder="Enter or scan the QR token"
+                  className="w-full rounded-lg border border-slate-300 px-4 py-3"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              className="mt-5 rounded-lg bg-green-600 px-5 py-3 font-semibold text-white hover:bg-green-700"
+            >
+              Record Attendance
+            </button>
+          </form>
+        )}
+
+        {/* Statistics */}
+        <div className="mb-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <p className="text-sm font-medium text-slate-500">
+              Total Records
+            </p>
+            <h2 className="mt-3 text-3xl font-bold text-slate-800">
+              {records.length}
+            </h2>
+          </div>
+
+          <div className="rounded-xl border border-green-200 bg-white p-6 shadow-sm">
+            <p className="text-sm font-medium text-slate-500">Present</p>
+            <h2 className="mt-3 text-3xl font-bold text-green-600">
+              {presentCount}
+            </h2>
+          </div>
+
+          <div className="rounded-xl border border-amber-200 bg-white p-6 shadow-sm">
+            <p className="text-sm font-medium text-slate-500">Late</p>
+            <h2 className="mt-3 text-3xl font-bold text-amber-500">
+              {lateCount}
+            </h2>
+          </div>
+
+          <div className="rounded-xl border border-red-200 bg-white p-6 shadow-sm">
+            <p className="text-sm font-medium text-slate-500">Absent</p>
+            <h2 className="mt-3 text-3xl font-bold text-red-600">
+              {absentCount}
+            </h2>
+          </div>
+        </div>
+
+        {/* Edit Record Form */}
+        {editingRecord && (
+          <form
+            onSubmit={saveEdit}
+            className="mb-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
+          >
+            <h2 className="mb-5 text-xl font-bold text-slate-800">
+              Correct Attendance Record #{editingRecord.id}
+            </h2>
+
+            <div className="grid gap-5 md:grid-cols-2">
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-700">
+                  Attendance Status
+                </label>
+
+                <select
+                  value={editForm.status}
+                  onChange={(event) =>
+                    setEditForm({
+                      ...editForm,
+                      status: event.target.value,
+                    })
+                  }
+                  className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3"
+                >
+                  <option value="Present">Present</option>
+                  <option value="Late">Late</option>
+                  <option value="Absent">Absent</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-700">
+                  Correction Remarks
+                </label>
+
+                <textarea
+                  rows={3}
+                  value={editForm.remarks}
+                  onChange={(event) =>
+                    setEditForm({
+                      ...editForm,
+                      remarks: event.target.value,
+                    })
+                  }
+                  placeholder="Explain why this record is being corrected"
+                  className="w-full rounded-lg border border-slate-300 px-4 py-3"
+                />
+              </div>
+            </div>
+
+            <div className="mt-5 flex gap-3">
+              <button
+                type="submit"
+                className="rounded-lg bg-blue-600 px-5 py-3 font-semibold text-white hover:bg-blue-700"
+              >
+                Save Correction
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setEditingRecord(null)}
+                className="rounded-lg border border-slate-300 px-5 py-3 font-semibold text-slate-700 hover:bg-slate-100"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* Attendance Records */}
+        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div className="flex flex-col justify-between gap-4 border-b border-slate-200 p-5 lg:flex-row lg:items-center">
+            <div>
+              <h2 className="text-lg font-bold text-slate-800">
+                Attendance Records
+              </h2>
+              <p className="mt-1 text-sm text-slate-500">
+                {filteredRecords.length} matching record(s)
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <input
+                type="search"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search staff..."
+                className="rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-blue-500"
+              />
+
+              <input
+                type="date"
+                value={dateFilter}
+                onChange={(event) => setDateFilter(event.target.value)}
+                className="rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-blue-500"
+              />
+
+              <select
+                value={statusFilter}
+                onChange={(event) => setStatusFilter(event.target.value)}
+                className="rounded-lg border border-slate-300 bg-white px-4 py-3"
+              >
+                <option value="All">All Statuses</option>
+                <option value="Present">Present</option>
+                <option value="Late">Late</option>
+                <option value="Absent">Absent</option>
+              </select>
+            </div>
+          </div>
+
+          {loading ? (
+            <div className="p-10 text-center text-slate-500">
+              Loading attendance records...
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[950px] text-left text-sm">
+                <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500">
+                  <tr>
+                    <th className="px-5 py-4">ID</th>
+                    <th className="px-5 py-4">Employee</th>
+                    <th className="px-5 py-4">Department</th>
+                    <th className="px-5 py-4">Date</th>
+                    <th className="px-5 py-4">Check-In</th>
+                    <th className="px-5 py-4">Status</th>
+                    <th className="px-5 py-4 text-center">Actions</th>
+                  </tr>
+                </thead>
+
+                <tbody className="divide-y divide-slate-100">
+                  {filteredRecords.map((record) => (
+                    <tr
+                      key={record.id}
+                      className="transition hover:bg-slate-50"
+                    >
+                      <td className="px-5 py-4 text-slate-500">
+                        {record.id}
+                      </td>
+
+                      <td className="px-5 py-4">
+                        <p className="font-semibold text-slate-800">
+                          {record.first_name} {record.last_name}
+                        </p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          {record.employee_id}
+                        </p>
+                      </td>
+
+                      <td className="px-5 py-4 text-slate-600">
+                        {record.department || "—"}
+                      </td>
+
+                      <td className="px-5 py-4 text-slate-600">
+                        {String(record.attendance_date || "").slice(0, 10) || "—"}
+                      </td>
+
+                      <td className="px-5 py-4 text-slate-600">
+                        {formatTime(record.check_in_time)}
+                      </td>
+
+                      <td className="px-5 py-4">
+                        <span
+                          className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${statusStyle(
+                            record.status
+                          )}`}
+                        >
+                          {record.status}
+                        </span>
+                      </td>
+
+                      <td className="px-5 py-4">
+                        <div className="flex justify-center gap-2">
+                          <button
+                            onClick={() => openEdit(record)}
+                            className="rounded-md bg-blue-50 px-3 py-2 font-medium text-blue-700 hover:bg-blue-100"
+                          >
+                            Edit
+                          </button>
+
+                          <button
+                            onClick={() => deleteRecord(record.id)}
+                            className="rounded-md bg-red-50 px-3 py-2 font-medium text-red-700 hover:bg-red-100"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+
+                  {!filteredRecords.length && (
+                    <tr>
+                      <td
+                        colSpan="7"
+                        className="px-6 py-12 text-center text-slate-500"
+                      >
+                        {search || dateFilter || statusFilter !== "All"
+                          ? "No attendance records match your filters."
+                          : "No attendance records found yet."}
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          <div className="border-t border-slate-200 p-4 text-right">
+            <button
+              onClick={loadAttendance}
+              className="rounded-lg border border-slate-300 px-4 py-2 font-semibold text-slate-700 hover:bg-slate-100"
+            >
+              Refresh Records
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import Staff from "../staff";
+import Departmental from "../departmental";
 
 const modules = [
   { name: "Dashboard", icon: "▦" },
@@ -90,6 +91,8 @@ export default function Dashboard() {
         >
           {activeModule === "Staff" ? (
             <Staff />
+          ) : activeModule === "Departments & Roles" ? (
+            <Departmental />
           ) : activeModule === "Dashboard" ? (
             <div>
               <h1 className="text-2xl font-bold text-slate-800">

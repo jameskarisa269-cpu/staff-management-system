@@ -20,8 +20,16 @@ app.post("/test", (req, res) => {
 });
 
 // Staff routes
-const staffRoutes = require("./staff/staff.routes");
+const staffRoutes = require("./routes/staffRoutes");
 app.use("/api/staff", staffRoutes);
+
+// Attendance routes
+const attendanceRoutes = require("./routes/attendanceRoutes");
+app.use("/api/attendance", attendanceRoutes);
+
+// Department routes
+const departmentRoutes = require("./routes/departmentRoutes");
+app.use("/api/departments", departmentRoutes);
 
 // Start server
 const PORT = process.env.PORT || 5000;
