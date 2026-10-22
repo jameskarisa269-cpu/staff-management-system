@@ -223,23 +223,9 @@ export default function Departmental() {
   ).length;
 
   return (
-    <div className="min-h-screen bg-slate-100 p-4 sm:p-6 lg:p-8">
+    <div className="bg-slate-100 p-4 sm:p-6 lg:p-8">
       <div className="mx-auto max-w-7xl">
-        {/* Header */}
-        <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-          <div>
-            <p className="text-sm font-semibold uppercase tracking-wider text-[#800000]">
-              Staff Management System
-            </p>
-            <h1 className="mt-2 text-3xl font-bold text-slate-800">
-              Department Management
-            </h1>
-            <p className="mt-2 text-slate-500">
-              Create departments, assign managers, and manage department
-              records.
-            </p>
-          </div>
-
+        <div className="mb-6 flex justify-end">
           <button
             onClick={openAddForm}
             className="rounded-lg bg-[#800000] px-5 py-3 font-semibold text-white shadow-sm transition hover:bg-[#650000]"

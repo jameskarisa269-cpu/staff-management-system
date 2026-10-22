@@ -87,16 +87,25 @@ export default function Attendance() {
     event.preventDefault();
     clearNotifications();
 
+    const expiryDate = new Date(sessionForm.expires_at);
+    if (
+      !Number.isFinite(expiryDate.getTime()) ||
+      expiryDate.getTime() <= Date.now() + 60_000
+    ) {
+      setError("Choose an expiry time at least one minute in the future.");
+      return;
+    }
+
     try {
       const data = await requestJSON(`${API_URL}/sessions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          expires_at: sessionForm.expires_at,
+          expires_at: expiryDate.toISOString(),
         }),
       });
 
-      setSession(data.session);
+      setSession(data);
       setMessage("QR attendance session created successfully.");
       setShowSessionForm(false);
       setSessionForm(initialSession);
@@ -250,24 +259,9 @@ export default function Attendance() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 p-4 sm:p-6 lg:p-8">
+    <div className="bg-slate-100 p-4 sm:p-6 lg:p-8">
       <div className="mx-auto max-w-7xl">
-        {/* Header */}
-        <div className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-center">
-          <div>
-            <p className="text-sm font-semibold uppercase tracking-wider text-blue-600">
-              Staff Management System
-            </p>
-
-            <h1 className="mt-2 text-3xl font-bold text-slate-800">
-              Attendance Management
-            </h1>
-
-            <p className="mt-2 text-slate-500">
-              Monitor staff attendance, check-in times, and attendance sessions.
-            </p>
-          </div>
-
+        <div className="mb-6 flex justify-end">
           <div className="flex flex-wrap gap-3">
             <button
               onClick={() => {
@@ -324,7 +318,7 @@ export default function Attendance() {
               type="datetime-local"
               required
               value={sessionForm.expires_at}
-              min={new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
+              min={new Date(Date.now() + 2 * 60_000 - new Date().getTimezoneOffset() * 60_000)
                 .toISOString()
                 .slice(0, 16)}
               onChange={(event) =>

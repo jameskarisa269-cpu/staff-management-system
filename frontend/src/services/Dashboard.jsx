@@ -1,6 +1,32 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Staff from "../staff";
 import Departmental from "../departmental";
+import Attendance from "../attendance";
+import Tasks from "../tasks";
+import Asset from "../asset";
+import Reports from "../reports";
+import Notifications from "../notifications";
+import AuditLogs from "../auditlog";
+
+const REPORTS_URL = "http://localhost:5000/api/reports";
+
+async function fetchDashboardSummary() {
+  const response = await fetch(`${REPORTS_URL}/dashboard`);
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(
+      data.message ||
+        `Dashboard summary is unavailable (HTTP ${response.status}).`,
+    );
+  }
+
+  if (!data.summary) {
+    throw new Error("The dashboard summary response was incomplete.");
+  }
+
+  return data.summary;
+}
 
 const modules = [
   { name: "Dashboard", icon: "▦" },
@@ -14,8 +40,204 @@ const modules = [
   { name: "Audit Logs", icon: "📋" },
 ];
 
+const summaryCards = [
+  {
+    key: "staff",
+    title: "Staff",
+    module: "Staff",
+    total: "total_staff",
+    details: [
+      ["Active", "active_staff"],
+      ["Inactive", "inactive_staff"],
+    ],
+    color: "border-blue-500",
+  },
+  {
+    key: "departments",
+    title: "Departments",
+    module: "Departments & Roles",
+    total: "total_departments",
+    details: [
+      ["Active", "active_departments"],
+      ["Inactive", "inactive_departments"],
+    ],
+    color: "border-violet-500",
+  },
+  {
+    key: "attendance",
+    title: "Attendance Records",
+    module: "Attendance",
+    total: "total_records",
+    details: [
+      ["Present", "present"],
+      ["Late", "late"],
+      ["Absent", "absent"],
+    ],
+    color: "border-green-500",
+  },
+  {
+    key: "tasks",
+    title: "Tasks",
+    module: "Tasks",
+    total: "total_tasks",
+    details: [
+      ["Pending", "pending"],
+      ["In Progress", "in_progress"],
+      ["Completed", "completed"],
+      ["Cancelled", "cancelled"],
+    ],
+    color: "border-amber-500",
+  },
+  {
+    key: "assets",
+    title: "Assets",
+    module: "Assets",
+    total: "total_assets",
+    details: [
+      ["Available", "available"],
+      ["Assigned", "assigned"],
+      ["Maintenance", "under_maintenance"],
+      ["Retired", "retired"],
+      ["Lost", "lost"],
+    ],
+    color: "border-indigo-500",
+  },
+];
+
+function countValue(value) {
+  if (value === null || value === undefined || value === "") return "—";
+  const count = Number(value);
+  return Number.isFinite(count) ? count : "—";
+}
+
+function DashboardOverview({ onOpenModule }) {
+  const [summary, setSummary] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadSummary() {
+      try {
+        const data = await fetchDashboardSummary();
+        if (active) {
+          setSummary(data);
+          setError("");
+        }
+      } catch (requestError) {
+        if (active) {
+          setError(requestError.message || "Unable to load dashboard summary.");
+        }
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+
+    loadSummary();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  return (
+    <div>
+      <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800">
+            Welcome to StaffHub
+          </h1>
+          <p className="mt-2 text-slate-500">
+            Organisation overview from your current staff, attendance, tasks,
+            and asset records.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={async () => {
+            setLoading(true);
+            setError("");
+            try {
+              setSummary(await fetchDashboardSummary());
+            } catch (requestError) {
+              setError(requestError.message || "Unable to load dashboard summary.");
+            } finally {
+              setLoading(false);
+            }
+          }}
+          className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+        >
+          Refresh summary
+        </button>
+      </div>
+
+      {error && (
+        <div className="mt-5 rounded-lg border border-red-200 bg-red-50 p-4 text-red-700">
+          {error}
+        </div>
+      )}
+
+      <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {summaryCards.map((card) => {
+          const values = summary?.[card.key];
+          return (
+            <button
+              key={card.key}
+              type="button"
+              onClick={() => onOpenModule(card.module)}
+              className={`rounded-xl border border-slate-200 border-l-4 ${card.color} bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md`}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="font-semibold text-slate-700">{card.title}</h2>
+                <span className="text-xs font-medium text-slate-400">
+                  View module →
+                </span>
+              </div>
+              <p className="mt-3 text-3xl font-bold text-slate-900">
+                {loading ? "…" : countValue(values?.[card.total])}
+              </p>
+              <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2 border-t border-slate-100 pt-3">
+                {card.details.map(([label, key]) => (
+                  <span key={key} className="text-sm text-slate-500">
+                    {label}:{" "}
+                    <strong className="font-semibold text-slate-700">
+                      {loading ? "…" : countValue(values?.[key])}
+                    </strong>
+                  </span>
+                ))}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="mt-8">
+        <h2 className="text-lg font-semibold text-slate-800">Modules</h2>
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {modules
+            .filter((module) => module.name !== "Dashboard")
+            .map((module) => (
+              <button
+                key={module.name}
+                type="button"
+                onClick={() => onOpenModule(module.name)}
+                className="rounded-xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[#800000] hover:shadow-md"
+              >
+                <span className="text-3xl">{module.icon}</span>
+                <h3 className="mt-3 font-semibold text-slate-800">
+                  {module.name}
+                </h3>
+                <p className="mt-1 text-sm text-slate-500">Open module →</p>
+              </button>
+            ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Dashboard() {
-  const [activeModule, setActiveModule] = useState("Staff");
+  const [activeModule, setActiveModule] = useState("Dashboard");
 
   return (
     <div className="flex min-h-screen bg-white font-sans text-slate-900">
@@ -93,37 +315,20 @@ export default function Dashboard() {
             <Staff />
           ) : activeModule === "Departments & Roles" ? (
             <Departmental />
+          ) : activeModule === "Attendance" ? (
+            <Attendance />
+          ) : activeModule === "Tasks" ? (
+            <Tasks />
+          ) : activeModule === "Assets" ? (
+            <Asset />
+          ) : activeModule === "Reports" ? (
+            <Reports />
+          ) : activeModule === "Notifications" ? (
+            <Notifications />
+          ) : activeModule === "Audit Logs" ? (
+            <AuditLogs />
           ) : activeModule === "Dashboard" ? (
-            <div>
-              <h1 className="text-2xl font-bold text-slate-800">
-                Welcome to StaffHub
-              </h1>
-              <p className="mt-2 text-slate-500">
-                Manage your organisation's staff and daily operations
-                from one place.
-              </p>
-
-              <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                {modules
-                  .filter((module) => module.name !== "Dashboard")
-                  .map((module) => (
-                    <button
-                      key={module.name}
-                      type="button"
-                      onClick={() => setActiveModule(module.name)}
-                      className="rounded-xl border border-slate-200 bg-white p-6 text-left shadow-sm transition hover:-translate-y-1 hover:border-[#800000] hover:shadow-md"
-                    >
-                      <span className="text-3xl">{module.icon}</span>
-                      <h3 className="mt-4 font-semibold text-slate-800">
-                        {module.name}
-                      </h3>
-                      <p className="mt-2 text-sm text-slate-500">
-                        Open module →
-                      </p>
-                    </button>
-                  ))}
-              </div>
-            </div>
+            <DashboardOverview onOpenModule={setActiveModule} />
           ) : (
             <div className="flex min-h-80 flex-col items-center justify-center rounded-xl border border-slate-200 bg-white p-8 text-center shadow-sm">
               <span className="text-5xl">

@@ -347,9 +347,6 @@ function Staff() {
                         )}
                     </section>
 
-                    <footer className="mt-8 text-center text-sm text-slate-400">
-                        Staff Management System © 2026
-                    </footer>
                 </main>
             </div>
 
