@@ -7,14 +7,26 @@ const Staff = {
 
     async findAll() {
         const [rows] = await db.execute(
-            "SELECT * FROM staff ORDER BY id DESC"
+            `SELECT s.id, s.employee_id, s.first_name, s.last_name, s.email,
+                    COALESCE(d.department_name, s.department) AS department,
+                    s.department_id, d.department_name,
+                    s.position, s.employment_status, s.created_at
+             FROM staff s
+             LEFT JOIN departments d ON d.id = s.department_id
+             ORDER BY s.id DESC`
         );
         return rows;
     },
 
     async findById(id) {
         const [rows] = await db.execute(
-            "SELECT * FROM staff WHERE id = ?",
+            `SELECT s.id, s.employee_id, s.first_name, s.last_name, s.email,
+                    COALESCE(d.department_name, s.department) AS department,
+                    s.department_id, d.department_name,
+                    s.position, s.employment_status, s.created_at
+             FROM staff s
+             LEFT JOIN departments d ON d.id = s.department_id
+             WHERE s.id = ?`,
             [id]
         );
         return rows[0];
@@ -24,8 +36,8 @@ const Staff = {
         const sql = `
             INSERT INTO staff
             (employee_id, first_name, last_name, email,
-             department, position, employment_status)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+             department, department_id, position, employment_status, password_hash)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
 
         const values = [
@@ -34,8 +46,10 @@ const Staff = {
             data.last_name,
             data.email || null,
             data.department || null,
+            data.department_id,
             data.position || null,
-            data.employment_status || "Active"
+            data.employment_status || "Active",
+            data.password_hash
         ];
 
         const [result] = await db.execute(sql, values);
@@ -50,8 +64,9 @@ const Staff = {
                 last_name = ?,
                 email = ?,
                 department = ?,
+                department_id = ?,
                 position = ?,
-                employment_status = ?
+                employment_status = ?${data.password_hash ? ", password_hash = ?" : ""}
             WHERE id = ?
         `;
 
@@ -61,13 +76,18 @@ const Staff = {
             data.last_name,
             data.email || null,
             data.department || null,
+            data.department_id,
             data.position || null,
             data.employment_status || "Active",
-            id
+            ...(data.password_hash ? [data.password_hash] : []),
+            id,
         ];
 
         const [result] = await db.execute(sql, values);
-        return result.affectedRows;
+        if (result.affectedRows) return result.affectedRows;
+
+        const [rows] = await db.execute("SELECT id FROM staff WHERE id = ?", [id]);
+        return rows.length ? 1 : 0;
     },
 
     async delete(id) {

@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import { apiFetch } from "./services/api";
 
 const API_URL = "http://localhost:5000/api/assets";
 const STAFF_URL = "http://localhost:5000/api/staff";
@@ -38,7 +39,7 @@ export default function Asset() {
   async function fetchAssets() {
     setLoading(true);
     try {
-      const response = await fetch(API_URL);
+      const response = await apiFetch(API_URL);
       const data = await response.json();
 
       if (!response.ok) {
@@ -56,7 +57,7 @@ export default function Asset() {
 
   async function fetchStaff() {
     try {
-      const response = await fetch(STAFF_URL);
+      const response = await apiFetch(STAFF_URL);
       const data = await response.json();
 
       if (response.ok) {
@@ -94,7 +95,7 @@ export default function Asset() {
     };
 
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         editingId ? `${API_URL}/${editingId}` : API_URL,
         {
           method: editingId ? "PUT" : "POST",
@@ -152,7 +153,7 @@ export default function Asset() {
     setSuccess("");
 
     try {
-      const response = await fetch(`${API_URL}/${id}`, {
+      const response = await apiFetch(`${API_URL}/${id}`, {
         method: "DELETE",
       });
       const data = await response.json();
@@ -182,7 +183,7 @@ export default function Asset() {
     setSuccess("");
 
     try {
-      const response = await fetch(`${API_URL}/${id}/assign`, {
+      const response = await apiFetch(`${API_URL}/${id}/assign`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ staff_id: Number(staffId) }),
@@ -209,7 +210,7 @@ export default function Asset() {
     setSuccess("");
 
     try {
-      const response = await fetch(`${API_URL}/${id}/return`, {
+      const response = await apiFetch(`${API_URL}/${id}/return`, {
         method: "PATCH",
       });
       const data = await response.json();
@@ -334,188 +335,202 @@ export default function Asset() {
         </div>
 
         {showForm && (
-          <form
-            onSubmit={handleSubmit}
-            className="mb-7 rounded-xl border border-gray-200 bg-white p-5 shadow-sm"
-          >
-            <h2 className="mb-5 text-xl font-bold">
-              {editingId ? "Edit Asset" : "Register New Asset"}
-            </h2>
-
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-              <label className="text-sm font-medium">
-                Asset Tag *
-                <input
-                  className={inputClass}
-                  name="asset_tag"
-                  value={form.asset_tag}
-                  onChange={handleChange}
-                  placeholder="AST-001"
-                  required
-                />
-              </label>
-
-              <label className="text-sm font-medium">
-                Asset Name *
-                <input
-                  className={inputClass}
-                  name="asset_name"
-                  value={form.asset_name}
-                  onChange={handleChange}
-                  placeholder="Office Laptop"
-                  required
-                />
-              </label>
-
-              <label className="text-sm font-medium">
-                Category
-                <input
-                  className={inputClass}
-                  name="category"
-                  value={form.category}
-                  onChange={handleChange}
-                  placeholder="Computer"
-                />
-              </label>
-
-              <label className="text-sm font-medium">
-                Serial Number
-                <input
-                  className={inputClass}
-                  name="serial_number"
-                  value={form.serial_number}
-                  onChange={handleChange}
-                  placeholder="Device serial number"
-                />
-              </label>
-
-              <label className="text-sm font-medium">
-                Condition
-                <select
-                  className={inputClass}
-                  name="asset_condition"
-                  value={form.asset_condition}
-                  onChange={handleChange}
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4">
+            <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
+              <div className="flex items-center justify-between border-b border-gray-200 px-6 py-5">
+                <h2 className="text-xl font-bold text-gray-900">
+                  {editingId ? "Edit Asset" : "Register New Asset"}
+                </h2>
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="rounded-lg px-3 py-2 text-gray-500 hover:bg-gray-100"
+                  aria-label="Close asset form"
                 >
-                  <option value="New">New</option>
-                  <option value="Good">Good</option>
-                  <option value="Fair">Fair</option>
-                  <option value="Damaged">Damaged</option>
-                </select>
-              </label>
+                  ✕
+                </button>
+              </div>
 
-              <label className="text-sm font-medium">
-                Status
-                <select
-                  className={inputClass}
-                  name="status"
-                  value={form.status}
-                  onChange={handleChange}
-                >
-                  <option value="Available">Available</option>
-                  <option value="Assigned">Assigned</option>
-                  <option value="Under Maintenance">Under Maintenance</option>
-                  <option value="Retired">Retired</option>
-                  <option value="Lost">Lost</option>
-                </select>
-              </label>
-
-              <label className="text-sm font-medium">
-                Assign to Staff
-                <select
-                  className={inputClass}
-                  name="assigned_to"
-                  value={form.assigned_to}
-                  onChange={(event) => {
-                    const value = event.target.value;
-                    setForm((previous) => ({
-                      ...previous,
-                      assigned_to: value,
-                      status: value ? "Assigned" : "Available",
-                    }));
-                  }}
-                >
-                  <option value="">Not assigned</option>
-                  {staff.map((person) => (
-                    <option key={person.id} value={person.id}>
-                      {person.employee_id} - {person.first_name}{" "}
-                      {person.last_name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="text-sm font-medium">
-                Purchase Date
-                <input
-                  className={inputClass}
-                  type="date"
-                  name="purchase_date"
-                  value={form.purchase_date}
-                  onChange={handleChange}
-                />
-              </label>
-
-              <label className="text-sm font-medium">
-                Purchase Cost (KES)
-                <input
-                  className={inputClass}
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  name="purchase_cost"
-                  value={form.purchase_cost}
-                  onChange={handleChange}
-                  placeholder="65000"
-                />
-              </label>
-
-              <label className="text-sm font-medium md:col-span-2 xl:col-span-3">
-                Location
-                <input
-                  className={inputClass}
-                  name="location"
-                  value={form.location}
-                  onChange={handleChange}
-                  placeholder="IT Department"
-                />
-              </label>
-
-              <label className="text-sm font-medium md:col-span-2 xl:col-span-3">
-                Description
-                <textarea
-                  className={inputClass}
-                  name="description"
-                  value={form.description}
-                  onChange={handleChange}
-                  rows="3"
-                  placeholder="Asset description..."
-                />
-              </label>
-            </div>
-
-            <div className="mt-6 flex flex-wrap gap-3">
-              <button
-                type="submit"
-                disabled={saving}
-                className="rounded-lg bg-blue-600 px-5 py-2.5 font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+              <form
+                onSubmit={handleSubmit}
+                className="p-6"
               >
-                {saving
-                  ? "Saving..."
-                  : editingId
-                  ? "Update Asset"
-                  : "Save Asset"}
-              </button>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  <label className="text-sm font-medium">
+                    Asset Tag *
+                    <input
+                      className={inputClass}
+                      name="asset_tag"
+                      value={form.asset_tag}
+                      onChange={handleChange}
+                      placeholder="AST-001"
+                      required
+                    />
+                  </label>
 
-              <button
-                type="button"
-                onClick={resetForm}
-                className="rounded-lg border border-gray-300 px-5 py-2.5 font-semibold hover:bg-gray-100"
-              >
-                Cancel
-              </button>
+                  <label className="text-sm font-medium">
+                    Asset Name *
+                    <input
+                      className={inputClass}
+                      name="asset_name"
+                      value={form.asset_name}
+                      onChange={handleChange}
+                      placeholder="Office Laptop"
+                      required
+                    />
+                  </label>
+
+                  <label className="text-sm font-medium">
+                    Category
+                    <input
+                      className={inputClass}
+                      name="category"
+                      value={form.category}
+                      onChange={handleChange}
+                      placeholder="Computer"
+                    />
+                  </label>
+
+                  <label className="text-sm font-medium">
+                    Serial Number
+                    <input
+                      className={inputClass}
+                      name="serial_number"
+                      value={form.serial_number}
+                      onChange={handleChange}
+                      placeholder="Device serial number"
+                    />
+                  </label>
+
+                  <label className="text-sm font-medium">
+                    Condition
+                    <select
+                      className={inputClass}
+                      name="asset_condition"
+                      value={form.asset_condition}
+                      onChange={handleChange}
+                    >
+                      <option value="New">New</option>
+                      <option value="Good">Good</option>
+                      <option value="Fair">Fair</option>
+                      <option value="Damaged">Damaged</option>
+                    </select>
+                  </label>
+
+                  <label className="text-sm font-medium">
+                    Status
+                    <select
+                      className={inputClass}
+                      name="status"
+                      value={form.status}
+                      onChange={handleChange}
+                    >
+                      <option value="Available">Available</option>
+                      <option value="Assigned">Assigned</option>
+                      <option value="Under Maintenance">Under Maintenance</option>
+                      <option value="Retired">Retired</option>
+                      <option value="Lost">Lost</option>
+                    </select>
+                  </label>
+
+                  <label className="text-sm font-medium">
+                    Assign to Staff
+                    <select
+                      className={inputClass}
+                      name="assigned_to"
+                      value={form.assigned_to}
+                      onChange={(event) => {
+                        const value = event.target.value;
+                        setForm((previous) => ({
+                          ...previous,
+                          assigned_to: value,
+                          status: value ? "Assigned" : "Available",
+                        }));
+                      }}
+                    >
+                      <option value="">Not assigned</option>
+                      {staff.map((person) => (
+                        <option key={person.id} value={person.id}>
+                          {person.employee_id} - {person.first_name}{" "}
+                          {person.last_name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="text-sm font-medium">
+                    Purchase Date
+                    <input
+                      className={inputClass}
+                      type="date"
+                      name="purchase_date"
+                      value={form.purchase_date}
+                      onChange={handleChange}
+                    />
+                  </label>
+
+                  <label className="text-sm font-medium">
+                    Purchase Cost (KES)
+                    <input
+                      className={inputClass}
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      name="purchase_cost"
+                      value={form.purchase_cost}
+                      onChange={handleChange}
+                      placeholder="65000"
+                    />
+                  </label>
+
+                  <label className="text-sm font-medium md:col-span-2 xl:col-span-3">
+                    Location
+                    <input
+                      className={inputClass}
+                      name="location"
+                      value={form.location}
+                      onChange={handleChange}
+                      placeholder="IT Department"
+                    />
+                  </label>
+
+                  <label className="text-sm font-medium md:col-span-2 xl:col-span-3">
+                    Description
+                    <textarea
+                      className={inputClass}
+                      name="description"
+                      value={form.description}
+                      onChange={handleChange}
+                      rows="3"
+                      placeholder="Asset description..."
+                    />
+                  </label>
+                </div>
+
+                <div className="mt-6 flex flex-wrap gap-3">
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    className="rounded-lg bg-blue-600 px-5 py-2.5 font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+                  >
+                    {saving
+                      ? "Saving..."
+                      : editingId
+                      ? "Update Asset"
+                      : "Save Asset"}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={resetForm}
+                    className="rounded-lg border border-gray-300 px-5 py-2.5 font-semibold hover:bg-gray-100"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
             </div>
-          </form>
+          </div>
         )}
 
         <div className="mb-5 flex flex-col gap-3 sm:flex-row">

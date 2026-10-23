@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { apiFetch } from "./services/api";
 
 const API_URL = "http://localhost:5000/api/notifications";
 
@@ -41,7 +42,7 @@ export default function Notifications() {
     if (showLoading) setLoading(true);
     setError("");
     try {
-      const data = await readResponse(await fetch(API_URL));
+      const data = await readResponse(await apiFetch(API_URL));
       if (!Array.isArray(data.notifications)) {
         throw new Error("The notifications response was incomplete.");
       }
@@ -58,7 +59,7 @@ export default function Notifications() {
 
     async function loadInitialNotifications() {
       try {
-        const data = await readResponse(await fetch(API_URL));
+        const data = await readResponse(await apiFetch(API_URL));
         if (!Array.isArray(data.notifications)) {
           throw new Error("The notifications response was incomplete.");
         }
@@ -83,7 +84,7 @@ export default function Notifications() {
     setError("");
     try {
       await readResponse(
-        await fetch(url, {
+        await apiFetch(url, {
           method,
           ...(method === "PATCH"
             ? {
@@ -106,7 +107,7 @@ export default function Notifications() {
     setError("");
     try {
       await readResponse(
-        await fetch(`${API_URL}/${id}`, { method: "DELETE" }),
+        await apiFetch(`${API_URL}/${id}`, { method: "DELETE" }),
       );
       setNotifications((current) =>
         current.filter((notification) => notification.id !== id),
@@ -124,7 +125,7 @@ export default function Notifications() {
     setError("");
     try {
       await readResponse(
-        await fetch(API_URL, {
+        await apiFetch(API_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(form),
@@ -181,68 +182,84 @@ export default function Notifications() {
       </div>
 
       {showForm && (
-        <form
-          onSubmit={createNotification}
-          className="mb-6 grid gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:grid-cols-2"
-        >
-          <label className="text-sm font-medium text-slate-700">
-            Title
-            <input
-              required
-              maxLength={200}
-              value={form.title}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, title: event.target.value }))
-              }
-              className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 font-normal"
-            />
-          </label>
-          <label className="text-sm font-medium text-slate-700">
-            Type
-            <select
-              value={form.type}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, type: event.target.value }))
-              }
-              className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 font-normal"
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4">
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
+              <h2 className="text-xl font-bold text-slate-800">Create notification</h2>
+              <button
+                type="button"
+                onClick={() => setShowForm(false)}
+                className="rounded-lg px-3 py-2 text-slate-500 hover:bg-slate-100"
+                aria-label="Close notification form"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form
+              onSubmit={createNotification}
+              className="grid gap-4 p-6 sm:grid-cols-2"
             >
-              {["General", "Task", "Attendance", "Asset", "System"].map(
-                (type) => (
-                  <option key={type} value={type}>
-                    {type}
-                  </option>
-                ),
-              )}
-            </select>
-          </label>
-          <label className="text-sm font-medium text-slate-700 sm:col-span-2">
-            Message
-            <textarea
-              required
-              rows={3}
-              value={form.message}
-              onChange={(event) =>
-                setForm((current) => ({
-                  ...current,
-                  message: event.target.value,
-                }))
-              }
-              className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 font-normal"
-            />
-          </label>
-          <div className="flex items-center justify-between gap-3 sm:col-span-2">
-            <p className="text-xs text-slate-500">
-              This notification will be visible to all staff.
-            </p>
-            <button
-              type="submit"
-              disabled={saving}
-              className="rounded-lg bg-[#800000] px-4 py-2 text-sm font-semibold text-white hover:bg-[#650000] disabled:opacity-60"
-            >
-              {saving ? "Creating..." : "Create"}
-            </button>
+              <label className="text-sm font-medium text-slate-700">
+                Title
+                <input
+                  required
+                  maxLength={200}
+                  value={form.title}
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, title: event.target.value }))
+                  }
+                  className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 font-normal"
+                />
+              </label>
+              <label className="text-sm font-medium text-slate-700">
+                Type
+                <select
+                  value={form.type}
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, type: event.target.value }))
+                  }
+                  className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 font-normal"
+                >
+                  {["General", "Task", "Attendance", "Asset", "System"].map(
+                    (type) => (
+                      <option key={type} value={type}>
+                        {type}
+                      </option>
+                    ),
+                  )}
+                </select>
+              </label>
+              <label className="text-sm font-medium text-slate-700 sm:col-span-2">
+                Message
+                <textarea
+                  required
+                  rows={3}
+                  value={form.message}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      message: event.target.value,
+                    }))
+                  }
+                  className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 font-normal"
+                />
+              </label>
+              <div className="flex items-center justify-between gap-3 sm:col-span-2">
+                <p className="text-xs text-slate-500">
+                  This notification will be visible to all staff.
+                </p>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="rounded-lg bg-[#800000] px-4 py-2 text-sm font-semibold text-white hover:bg-[#650000] disabled:opacity-60"
+                >
+                  {saving ? "Creating..." : "Create"}
+                </button>
+              </div>
+            </form>
           </div>
-        </form>
+        </div>
       )}
 
       {error && (

@@ -1,4 +1,20 @@
 const Staff = require("../models/staffModel");
+const Department = require("../models/departmentModel");
+const { hashPassword } = require("../utils/password");
+
+function validateDepartmentId(value) {
+    const id = Number(value);
+    return Number.isSafeInteger(id) && id > 0 ? id : null;
+}
+
+async function departmentForStaff(value) {
+    const departmentId = validateDepartmentId(value);
+    if (!departmentId) return null;
+
+    const department = await Department.findById(departmentId);
+    if (!department) return null;
+    return department;
+}
 
 exports.getAllStaff = async (req, res) => {
     try {
@@ -31,18 +47,27 @@ exports.createStaff = async (req, res) => {
         first_name,
         last_name,
         email,
-        department,
+        department_id,
         position,
-        employment_status
-    } = req.body;
+        employment_status,
+        password
+    } = req.body || {};
 
     if (
-        !employee_id?.trim() ||
-        !first_name?.trim() ||
-        !last_name?.trim()
+        typeof employee_id !== "string" ||
+        !employee_id.trim() ||
+        typeof first_name !== "string" ||
+        !first_name.trim() ||
+        typeof last_name !== "string" ||
+        !last_name.trim() ||
+        typeof email !== "string" ||
+        !email.trim() ||
+        typeof password !== "string" ||
+        password.length < 8 ||
+        password.length > 128
     ) {
         return res.status(400).json({
-            message: "Employee ID, first name and last name are required."
+            message: "Employee ID, first name, last name, email, department, and a password of 8 to 128 characters are required."
         });
     }
 
@@ -56,14 +81,21 @@ exports.createStaff = async (req, res) => {
     }
 
     try {
+        const department = await departmentForStaff(department_id);
+        if (!department) {
+            return res.status(400).json({ message: "Select a registered department." });
+        }
+
         const id = await Staff.create({
             employee_id: employee_id.trim(),
             first_name: first_name.trim(),
             last_name: last_name.trim(),
-            email,
-            department,
+            email: email.trim(),
+            department: department.department_name,
+            department_id: department.id,
             position,
-            employment_status
+            employment_status,
+            password_hash: await hashPassword(password)
         });
 
         res.status(201).json({
@@ -88,18 +120,27 @@ exports.updateStaff = async (req, res) => {
         first_name,
         last_name,
         email,
-        department,
+        department_id,
         position,
-        employment_status
-    } = req.body;
+        employment_status,
+        password
+    } = req.body || {};
 
     if (
-        !employee_id?.trim() ||
-        !first_name?.trim() ||
-        !last_name?.trim()
+        typeof employee_id !== "string" ||
+        !employee_id.trim() ||
+        typeof first_name !== "string" ||
+        !first_name.trim() ||
+        typeof last_name !== "string" ||
+        !last_name.trim() ||
+        typeof email !== "string" ||
+        !email.trim() ||
+        (password !== undefined &&
+            password !== "" &&
+            (typeof password !== "string" || password.length < 8 || password.length > 128))
     ) {
         return res.status(400).json({
-            message: "Employee ID, first name and last name are required."
+            message: "Employee ID, first name, last name, and email are required. A new password must be 8 to 128 characters."
         });
     }
 
@@ -113,14 +154,21 @@ exports.updateStaff = async (req, res) => {
     }
 
     try {
+        const department = await departmentForStaff(department_id);
+        if (!department) {
+            return res.status(400).json({ message: "Select a registered department." });
+        }
+
         const affectedRows = await Staff.update(req.params.id, {
             employee_id: employee_id.trim(),
             first_name: first_name.trim(),
             last_name: last_name.trim(),
-            email,
-            department,
+            email: email.trim(),
+            department: department.department_name,
+            department_id: department.id,
             position,
-            employment_status
+            employment_status,
+            password_hash: password ? await hashPassword(password) : null
         });
 
         if (!affectedRows) {

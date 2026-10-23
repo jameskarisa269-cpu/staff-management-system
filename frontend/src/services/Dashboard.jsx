@@ -7,11 +7,12 @@ import Asset from "../asset";
 import Reports from "../reports";
 import Notifications from "../notifications";
 import AuditLogs from "../auditlog";
+import { apiFetch } from "./api";
 
 const REPORTS_URL = "http://localhost:5000/api/reports";
 
 async function fetchDashboardSummary() {
-  const response = await fetch(`${REPORTS_URL}/dashboard`);
+  const response = await apiFetch(`${REPORTS_URL}/dashboard`);
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
@@ -236,8 +237,15 @@ function DashboardOverview({ onOpenModule }) {
   );
 }
 
-export default function Dashboard() {
-  const [activeModule, setActiveModule] = useState("Dashboard");
+export default function Dashboard({ user, onLogout }) {
+  const staffModules = [
+    { name: "Tasks", icon: "✓" },
+    { name: "Reports", icon: "📊" },
+  ];
+  const visibleModules = user.role === "admin" ? modules : staffModules;
+  const [activeModule, setActiveModule] = useState(
+    user.role === "admin" ? "Dashboard" : "Tasks",
+  );
 
   return (
     <div className="flex min-h-screen bg-white font-sans text-slate-900">
@@ -252,7 +260,7 @@ export default function Dashboard() {
         </p>
 
         <nav className="flex flex-col gap-2">
-          {modules.map((module) => (
+          {visibleModules.map((module) => (
             <button
               key={module.name}
               type="button"
@@ -272,8 +280,8 @@ export default function Dashboard() {
         </nav>
 
         <div className="mt-auto border-t border-slate-700 px-2 pt-5">
-          <p className="text-sm text-slate-300">
-            Staff Management System
+          <p className="truncate text-sm text-slate-300">
+            {user.role === "admin" ? "Administrator" : user.name}
           </p>
           <p className="mt-1 text-xs text-slate-500">
             Version 1.0.0
@@ -296,12 +304,19 @@ export default function Dashboard() {
 
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#f5e8eb] font-bold text-[#800000]">
-              A
+              {(user.name || "U").charAt(0).toUpperCase()}
             </div>
             <div className="hidden sm:block">
-              <p className="text-sm font-semibold">Administrator</p>
-              <p className="text-xs text-slate-500">System Admin</p>
+              <p className="text-sm font-semibold">{user.name}</p>
+              <p className="text-xs capitalize text-slate-500">{user.role}</p>
             </div>
+            <button
+              type="button"
+              onClick={onLogout}
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              Sign out
+            </button>
           </div>
         </header>
 
@@ -311,23 +326,23 @@ export default function Dashboard() {
             activeModule === "Staff" ? "p-0" : "p-4 sm:p-6"
           }`}
         >
-          {activeModule === "Staff" ? (
+          {user.role === "admin" && activeModule === "Staff" ? (
             <Staff />
-          ) : activeModule === "Departments & Roles" ? (
+          ) : user.role === "admin" && activeModule === "Departments & Roles" ? (
             <Departmental />
-          ) : activeModule === "Attendance" ? (
+          ) : user.role === "admin" && activeModule === "Attendance" ? (
             <Attendance />
           ) : activeModule === "Tasks" ? (
-            <Tasks />
-          ) : activeModule === "Assets" ? (
+            <Tasks user={user} />
+          ) : user.role === "admin" && activeModule === "Assets" ? (
             <Asset />
           ) : activeModule === "Reports" ? (
-            <Reports />
-          ) : activeModule === "Notifications" ? (
+            <Reports user={user} />
+          ) : user.role === "admin" && activeModule === "Notifications" ? (
             <Notifications />
-          ) : activeModule === "Audit Logs" ? (
+          ) : user.role === "admin" && activeModule === "Audit Logs" ? (
             <AuditLogs />
-          ) : activeModule === "Dashboard" ? (
+          ) : user.role === "admin" && activeModule === "Dashboard" ? (
             <DashboardOverview onOpenModule={setActiveModule} />
           ) : (
             <div className="flex min-h-80 flex-col items-center justify-center rounded-xl border border-slate-200 bg-white p-8 text-center shadow-sm">

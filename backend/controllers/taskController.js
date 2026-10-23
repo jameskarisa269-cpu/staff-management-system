@@ -85,7 +85,9 @@ function validateTask(body) {
 const taskController = {
   async getAll(req, res) {
     try {
-      const tasks = await Task.getAll();
+      const tasks = await Task.getAll(
+        req.user.role === "staff" ? req.user.id : null
+      );
 
       return res.status(200).json({
         count: tasks.length,
@@ -111,6 +113,10 @@ const taskController = {
         return res.status(404).json({ message: "Task not found" });
       }
 
+      if (req.user.role === "staff" && task.assigned_to !== req.user.id) {
+        return res.status(403).json({ message: "You can only view tasks assigned to you." });
+      }
+
       return res.status(200).json({ task });
     } catch (error) {
       console.error("Get task error:", error);
@@ -122,12 +128,16 @@ const taskController = {
 
   async create(req, res) {
     try {
+      if (req.user.role !== "admin") {
+        return res.status(403).json({ message: "Only admins can assign tasks." });
+      }
+
       const { task, error } = validateTask(req.body);
       if (error) {
         return res.status(400).json({ message: error });
       }
 
-      const id = await Task.create(task);
+      const id = await Task.create(task, req.user.id);
 
       return res.status(201).json({
         message: "Task created successfully",
@@ -158,6 +168,27 @@ const taskController = {
     try {
       if (!validId(req.params.id)) {
         return res.status(400).json({ message: "Invalid task ID" });
+      }
+
+      if (req.user.role === "staff") {
+        const status = req.body?.status;
+        if (!allowedStatuses.includes(status)) {
+          return res.status(400).json({ message: "Choose a valid task status." });
+        }
+
+        const updated = await Task.updateStatus(
+          Number(req.params.id),
+          req.user.id,
+          status
+        );
+        if (!updated) {
+          const task = await Task.getById(Number(req.params.id));
+          return task
+            ? res.status(403).json({ message: "You can only update tasks assigned to you." })
+            : res.status(404).json({ message: "Task not found" });
+        }
+
+        return res.status(200).json({ message: "Task status updated successfully" });
       }
 
       const { task, error } = validateTask(req.body);
@@ -191,6 +222,10 @@ const taskController = {
 
   async delete(req, res) {
     try {
+      if (req.user.role !== "admin") {
+        return res.status(403).json({ message: "Only admins can delete tasks." });
+      }
+
       if (!validId(req.params.id)) {
         return res.status(400).json({ message: "Invalid task ID" });
       }

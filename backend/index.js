@@ -27,6 +27,9 @@ const assetRoutes = require("./routes/assetRoutes");
 const reportRoutes = require("./routes/reportRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 const auditLogRoutes = require("./routes/auditlogRoutes");
+const authRoutes = require("./routes/authRoutes");
+const submissionRoutes = require("./routes/submissionRoutes");
+const { authenticate, requireRole } = require("./middleware/auth");
 const AuditLog = require("./models/auditlogModel");
 
 const auditedModules = {
@@ -37,6 +40,9 @@ const auditedModules = {
     assets: "Asset",
     notifications: "Notification"
 };
+
+app.use("/api/auth", authRoutes);
+app.use("/api", authenticate);
 
 app.use((req, res, next) => {
     const match = req.path.match(/^\/api\/(staff|attendance|departments|tasks|assets|notifications)(?:\/(\d+))?/);
@@ -55,7 +61,7 @@ app.use((req, res, next) => {
             }
 
             AuditLog.create({
-                user_id: null,
+                user_id: req.user?.role === "staff" ? req.user.id : null,
                 action,
                 module: auditedModules[match[1]],
                 record_id: match[2] ? Number(match[2]) : null,
@@ -70,14 +76,15 @@ app.use((req, res, next) => {
     next();
 });
 
-app.use("/api/staff", staffRoutes);
-app.use("/api/attendance", attendanceRoutes);
-app.use("/api/departments", departmentRoutes);
+app.use("/api/staff", requireRole("admin"), staffRoutes);
+app.use("/api/attendance", requireRole("admin"), attendanceRoutes);
+app.use("/api/departments", requireRole("admin"), departmentRoutes);
 app.use("/api/tasks", taskRoutes);
-app.use("/api/assets", assetRoutes);
-app.use("/api/reports", reportRoutes);
-app.use("/api/notifications", notificationRoutes);
-app.use("/api/audit-logs", auditLogRoutes);
+app.use("/api/assets", requireRole("admin"), assetRoutes);
+app.use("/api/reports", requireRole("admin"), reportRoutes);
+app.use("/api/submissions", submissionRoutes);
+app.use("/api/notifications", requireRole("admin"), notificationRoutes);
+app.use("/api/audit-logs", requireRole("admin"), auditLogRoutes);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { apiFetch } from "./services/api";
 
 const API_URL = "http://localhost:5000/api/audit-logs";
 const modules = [
@@ -15,7 +16,7 @@ const modules = [
 ];
 
 async function fetchAuditLogs() {
-  const response = await fetch(API_URL);
+  const response = await apiFetch(API_URL);
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
@@ -94,7 +95,7 @@ export default function AuditLogs() {
         log.module,
         log.record_id,
         log.description,
-        log.ip_address === "DEMO" ? "Demo data" : log.ip_address,
+        log.ip_address === "127.0.0.1" ? "System data" : log.ip_address,
         formatDate(log.created_at),
       ]
         .filter((value) => value !== null && value !== undefined)
@@ -127,7 +128,7 @@ export default function AuditLogs() {
             </p>
             <p className="mt-1 text-xs text-slate-500">
               System/API is shown as the actor because user sign-in is not configured.
-              Demo entries are labeled.
+              Sample entries are labeled.
             </p>
           </div>
           <button
@@ -246,7 +247,7 @@ export default function AuditLogs() {
                     const actor = [log.first_name, log.last_name]
                       .filter(Boolean)
                       .join(" ");
-                    const isDemo = log.ip_address === "DEMO";
+                    const isSample = log.ip_address === "127.0.0.1";
 
                     return (
                       <tr key={log.id} className="align-top hover:bg-slate-50">
@@ -280,9 +281,9 @@ export default function AuditLogs() {
                         </td>
                         <td className="max-w-lg px-5 py-4 text-slate-600">
                           {log.description || "—"}
-                          {isDemo && (
+                          {isSample && (
                             <span className="mt-1 block text-xs font-medium text-amber-700">
-                              Demo entry
+                              Sample entry
                             </span>
                           )}
                         </td>

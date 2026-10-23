@@ -97,10 +97,11 @@ const Attendance = {
         s.employee_id,
         s.first_name,
         s.last_name,
-        s.department,
+        COALESCE(d.department_name, s.department) AS department,
         s.position
       FROM attendance_records a
       JOIN staff s ON a.staff_id = s.id
+      LEFT JOIN departments d ON d.id = s.department_id
       WHERE 1 = 1
     `;
 

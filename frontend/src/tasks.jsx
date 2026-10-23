@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { apiFetch } from "./services/api";
 
 const API_URL = "http://localhost:5000/api/tasks";
 const STAFF_URL = "http://localhost:5000/api/staff";
@@ -52,7 +53,8 @@ function statusStyle(status) {
   return styles[status] || styles.Pending;
 }
 
-export default function Tasks() {
+export default function Tasks({ user }) {
+  const isAdmin = user?.role === "admin";
   const [tasks, setTasks] = useState([]);
   const [staff, setStaff] = useState([]);
   const [form, setForm] = useState(emptyForm);
@@ -70,14 +72,11 @@ export default function Tasks() {
 
     async function loadInitialData() {
       try {
-        const [taskResponse, staffResponse] = await Promise.all([
-          fetch(API_URL),
-          fetch(STAFF_URL),
-        ]);
-        const [taskData, staffData] = await Promise.all([
-          readResponse(taskResponse),
-          readResponse(staffResponse),
-        ]);
+        const taskResponse = await apiFetch(API_URL);
+        const taskData = await readResponse(taskResponse);
+        const staffData = isAdmin
+          ? await readResponse(await apiFetch(STAFF_URL))
+          : [];
 
         if (active) {
           setTasks(Array.isArray(taskData) ? taskData : taskData.tasks || []);
@@ -96,13 +95,13 @@ export default function Tasks() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [isAdmin]);
 
   async function loadTasks() {
     setLoading(true);
     setError("");
     try {
-      const data = await readResponse(await fetch(API_URL));
+      const data = await readResponse(await apiFetch(API_URL));
       setTasks(Array.isArray(data) ? data : data.tasks || []);
     } catch (err) {
       setError(err.message || "Unable to load tasks.");
@@ -142,7 +141,7 @@ export default function Tasks() {
     setMessage("");
 
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         editingId ? `${API_URL}/${editingId}` : API_URL,
         {
           method: editingId ? "PUT" : "POST",
@@ -174,11 +173,27 @@ export default function Tasks() {
     setError("");
     setMessage("");
     try {
-      await readResponse(await fetch(`${API_URL}/${id}`, { method: "DELETE" }));
+      await readResponse(await apiFetch(`${API_URL}/${id}`, { method: "DELETE" }));
       setMessage("Task deleted successfully.");
       await loadTasks();
     } catch (err) {
       setError(err.message || "Unable to delete task.");
+    }
+  }
+
+  async function updateStatus(task, status) {
+    setError("");
+    setMessage("");
+    try {
+      await readResponse(await apiFetch(`${API_URL}/${task.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      }));
+      setMessage("Task status updated.");
+      await loadTasks();
+    } catch (err) {
+      setError(err.message || "Unable to update task status.");
     }
   }
 
@@ -203,7 +218,7 @@ export default function Tasks() {
   return (
     <div className="bg-slate-100 p-4 sm:p-6 lg:p-8">
       <div className="mx-auto max-w-7xl">
-        <div className="mb-6 flex justify-end">
+        {isAdmin && <div className="mb-6 flex justify-end">
           <button
             type="button"
             onClick={openCreateForm}
@@ -211,7 +226,7 @@ export default function Tasks() {
           >
             + Add Task
           </button>
-        </div>
+        </div>}
 
         {message && (
           <div className="mb-5 rounded-lg border border-green-200 bg-green-50 p-4 text-green-700">
@@ -239,143 +254,147 @@ export default function Tasks() {
         </div>
 
         {showForm && (
-          <form onSubmit={saveTask} className="mb-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="mb-5 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-slate-800">
-                {editingId ? "Edit Task" : "Create Task"}
-              </h2>
-              <button
-                type="button"
-                onClick={() => setShowForm(false)}
-                className="rounded-lg px-3 py-2 text-slate-500 hover:bg-slate-100"
-                aria-label="Close task form"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="grid gap-5 md:grid-cols-2">
-              <div>
-                <label htmlFor="task-title" className="mb-2 block text-sm font-semibold text-slate-700">
-                  Task title *
-                </label>
-                <input
-                  id="task-title"
-                  required
-                  maxLength={200}
-                  value={form.title}
-                  onChange={(event) => setForm({ ...form, title: event.target.value })}
-                  className="w-full rounded-lg border border-slate-300 px-4 py-3"
-                  placeholder="e.g. Prepare monthly report"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="task-assignee" className="mb-2 block text-sm font-semibold text-slate-700">
-                  Assign to
-                </label>
-                <select
-                  id="task-assignee"
-                  value={form.assigned_to}
-                  onChange={(event) => setForm({ ...form, assigned_to: event.target.value })}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3"
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4">
+            <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
+              <div className="mb-5 flex items-center justify-between border-b border-slate-200 px-6 py-5">
+                <h2 className="text-xl font-bold text-slate-800">
+                  {editingId ? "Edit Task" : "Create Task"}
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => setShowForm(false)}
+                  className="rounded-lg px-3 py-2 text-slate-500 hover:bg-slate-100"
+                  aria-label="Close task form"
                 >
-                  <option value="">Unassigned</option>
-                  {staff.map((member) => (
-                    <option key={member.id} value={member.id}>
-                      {member.first_name} {member.last_name} — {member.employee_id}
-                    </option>
-                  ))}
-                </select>
+                  ✕
+                </button>
               </div>
 
-              <div>
-                <label htmlFor="task-priority" className="mb-2 block text-sm font-semibold text-slate-700">
-                  Priority
-                </label>
-                <select
-                  id="task-priority"
-                  value={form.priority}
-                  onChange={(event) => setForm({ ...form, priority: event.target.value })}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3"
-                >
-                  {priorities.map((priority) => <option key={priority}>{priority}</option>)}
-                </select>
-              </div>
+              <form onSubmit={saveTask} className="px-6 pb-6">
+                <div className="grid gap-5 md:grid-cols-2">
+                  <div>
+                    <label htmlFor="task-title" className="mb-2 block text-sm font-semibold text-slate-700">
+                      Task title *
+                    </label>
+                    <input
+                      id="task-title"
+                      required
+                      maxLength={200}
+                      value={form.title}
+                      onChange={(event) => setForm({ ...form, title: event.target.value })}
+                      className="w-full rounded-lg border border-slate-300 px-4 py-3"
+                      placeholder="e.g. Prepare monthly report"
+                    />
+                  </div>
 
-              <div>
-                <label htmlFor="task-status" className="mb-2 block text-sm font-semibold text-slate-700">
-                  Status
-                </label>
-                <select
-                  id="task-status"
-                  value={form.status}
-                  onChange={(event) => setForm({ ...form, status: event.target.value })}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3"
-                >
-                  {statuses.map((status) => <option key={status}>{status}</option>)}
-                </select>
-              </div>
+                  <div>
+                    <label htmlFor="task-assignee" className="mb-2 block text-sm font-semibold text-slate-700">
+                      Assign to
+                    </label>
+                    <select
+                      id="task-assignee"
+                      value={form.assigned_to}
+                      onChange={(event) => setForm({ ...form, assigned_to: event.target.value })}
+                      className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3"
+                    >
+                      <option value="">Unassigned</option>
+                      {staff.map((member) => (
+                        <option key={member.id} value={member.id}>
+                          {member.first_name} {member.last_name} — {member.employee_id}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-              <div>
-                <label htmlFor="task-start-date" className="mb-2 block text-sm font-semibold text-slate-700">
-                  Start date
-                </label>
-                <input
-                  id="task-start-date"
-                  type="date"
-                  value={form.start_date}
-                  onChange={(event) => setForm({ ...form, start_date: event.target.value })}
-                  className="w-full rounded-lg border border-slate-300 px-4 py-3"
-                />
-              </div>
+                  <div>
+                    <label htmlFor="task-priority" className="mb-2 block text-sm font-semibold text-slate-700">
+                      Priority
+                    </label>
+                    <select
+                      id="task-priority"
+                      value={form.priority}
+                      onChange={(event) => setForm({ ...form, priority: event.target.value })}
+                      className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3"
+                    >
+                      {priorities.map((priority) => <option key={priority}>{priority}</option>)}
+                    </select>
+                  </div>
 
-              <div>
-                <label htmlFor="task-due-date" className="mb-2 block text-sm font-semibold text-slate-700">
-                  Due date
-                </label>
-                <input
-                  id="task-due-date"
-                  type="date"
-                  min={form.start_date || undefined}
-                  value={form.due_date}
-                  onChange={(event) => setForm({ ...form, due_date: event.target.value })}
-                  className="w-full rounded-lg border border-slate-300 px-4 py-3"
-                />
-              </div>
+                  <div>
+                    <label htmlFor="task-status" className="mb-2 block text-sm font-semibold text-slate-700">
+                      Status
+                    </label>
+                    <select
+                      id="task-status"
+                      value={form.status}
+                      onChange={(event) => setForm({ ...form, status: event.target.value })}
+                      className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3"
+                    >
+                      {statuses.map((status) => <option key={status}>{status}</option>)}
+                    </select>
+                  </div>
 
-              <div className="md:col-span-2">
-                <label htmlFor="task-description" className="mb-2 block text-sm font-semibold text-slate-700">
-                  Description
-                </label>
-                <textarea
-                  id="task-description"
-                  rows={3}
-                  value={form.description}
-                  onChange={(event) => setForm({ ...form, description: event.target.value })}
-                  className="w-full rounded-lg border border-slate-300 px-4 py-3"
-                  placeholder="Add details for this task"
-                />
-              </div>
+                  <div>
+                    <label htmlFor="task-start-date" className="mb-2 block text-sm font-semibold text-slate-700">
+                      Start date
+                    </label>
+                    <input
+                      id="task-start-date"
+                      type="date"
+                      value={form.start_date}
+                      onChange={(event) => setForm({ ...form, start_date: event.target.value })}
+                      className="w-full rounded-lg border border-slate-300 px-4 py-3"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="task-due-date" className="mb-2 block text-sm font-semibold text-slate-700">
+                      Due date
+                    </label>
+                    <input
+                      id="task-due-date"
+                      type="date"
+                      min={form.start_date || undefined}
+                      value={form.due_date}
+                      onChange={(event) => setForm({ ...form, due_date: event.target.value })}
+                      className="w-full rounded-lg border border-slate-300 px-4 py-3"
+                    />
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label htmlFor="task-description" className="mb-2 block text-sm font-semibold text-slate-700">
+                      Description
+                    </label>
+                    <textarea
+                      id="task-description"
+                      rows={3}
+                      value={form.description}
+                      onChange={(event) => setForm({ ...form, description: event.target.value })}
+                      className="w-full rounded-lg border border-slate-300 px-4 py-3"
+                      placeholder="Add details for this task"
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-6 flex flex-wrap gap-3">
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    className="rounded-lg bg-[#800000] px-6 py-3 font-semibold text-white hover:bg-[#650000] disabled:opacity-60"
+                  >
+                    {saving ? "Saving..." : editingId ? "Save Changes" : "Create Task"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowForm(false)}
+                    className="rounded-lg border border-slate-300 px-6 py-3 font-semibold text-slate-700 hover:bg-slate-100"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
             </div>
-
-            <div className="mt-6 flex flex-wrap gap-3">
-              <button
-                type="submit"
-                disabled={saving}
-                className="rounded-lg bg-[#800000] px-6 py-3 font-semibold text-white hover:bg-[#650000] disabled:opacity-60"
-              >
-                {saving ? "Saving..." : editingId ? "Save Changes" : "Create Task"}
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowForm(false)}
-                className="rounded-lg border border-slate-300 px-6 py-3 font-semibold text-slate-700 hover:bg-slate-100"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
+          </div>
         )}
 
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -439,15 +458,28 @@ export default function Tasks() {
                         </span>
                       </td>
                       <td className="px-5 py-4">
-                        <span className={`rounded-full px-3 py-1 text-xs font-semibold ${statusStyle(task.status)}`}>
-                          {task.status}
-                        </span>
+                        {isAdmin ? (
+                          <span className={`rounded-full px-3 py-1 text-xs font-semibold ${statusStyle(task.status)}`}>
+                            {task.status}
+                          </span>
+                        ) : (
+                          <select
+                            value={task.status}
+                            onChange={(event) => updateStatus(task, event.target.value)}
+                            aria-label={`Update status for ${task.title}`}
+                            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                          >
+                            {statuses.filter((status) => status !== "Cancelled" || task.status === "Cancelled").map((status) => (
+                              <option key={status}>{status}</option>
+                            ))}
+                          </select>
+                        )}
                       </td>
                       <td className="px-5 py-4 text-slate-600">
                         {dateValue(task.due_date) || "—"}
                       </td>
                       <td className="px-5 py-4">
-                        <div className="flex justify-center gap-2">
+                        {isAdmin ? <div className="flex justify-center gap-2">
                           <button
                             type="button"
                             onClick={() => openEditForm(task)}
@@ -462,7 +494,7 @@ export default function Tasks() {
                           >
                             Delete
                           </button>
-                        </div>
+                        </div> : <span className="text-xs text-slate-500">Update status above</span>}
                       </td>
                     </tr>
                   ))}

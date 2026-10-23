@@ -1,4 +1,7 @@
 import { useEffect, useState } from "react";
+import { apiFetch } from "./services/api";
+import AdminSubmissions from "./AdminSubmissions";
+import StaffReports from "./StaffReports";
 
 const API_URL = "http://localhost:5000/api/reports";
 
@@ -78,7 +81,7 @@ const reportDefinitions = [
 ];
 
 async function fetchReport(definition) {
-  const response = await fetch(`${API_URL}/${definition.endpoint}`);
+  const response = await apiFetch(`${API_URL}/${definition.endpoint}`);
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
@@ -140,7 +143,7 @@ function displayValue(value, column, row) {
   return String(value);
 }
 
-export default function Reports() {
+function AdminReports() {
   const [activeReport, setActiveReport] = useState("staff");
   const [reports, setReports] = useState({});
   const [loading, setLoading] = useState(true);
@@ -190,6 +193,7 @@ export default function Reports() {
   return (
     <div className="bg-slate-100 p-4 sm:p-6 lg:p-8">
       <div className="mx-auto max-w-7xl">
+        <AdminSubmissions />
         <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <div>
             <p className="text-slate-600">
@@ -309,4 +313,8 @@ export default function Reports() {
       </div>
     </div>
   );
+}
+
+export default function Reports({ user }) {
+  return user?.role === "staff" ? <StaffReports user={user} /> : <AdminReports />;
 }

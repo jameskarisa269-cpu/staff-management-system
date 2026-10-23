@@ -1,19 +1,23 @@
 import { useEffect, useState } from "react";
+import { apiFetch } from "./services/api";
 
 const API_URL = "http://localhost:5000/api/staff";
+const DEPARTMENTS_URL = "http://localhost:5000/api/departments";
 
 const emptyForm = {
     employee_id: "",
     first_name: "",
     last_name: "",
     email: "",
-    department: "",
+    department_id: "",
     position: "",
     employment_status: "Active",
+    password: "",
 };
 
 function Staff() {
     const [staff, setStaff] = useState([]);
+    const [departments, setDepartments] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [saving, setSaving] = useState(false);
@@ -25,8 +29,8 @@ function Staff() {
     // Fetch all staff records
     async function fetchStaff() {
         try {
+            const response = await apiFetch(API_URL);
             setError("");
-            const response = await fetch(API_URL);
 
             if (!response.ok) {
                 throw new Error("Failed to fetch staff records.");
@@ -42,7 +46,37 @@ function Staff() {
     }
 
     useEffect(() => {
-        fetchStaff();
+        let active = true;
+        async function loadInitialData() {
+            try {
+                const [staffResponse, departmentsResponse] = await Promise.all([
+                    apiFetch(API_URL),
+                    apiFetch(DEPARTMENTS_URL),
+                ]);
+                const [staffData, departmentData] = await Promise.all([
+                    staffResponse.json(),
+                    departmentsResponse.json(),
+                ]);
+                if (!staffResponse.ok) {
+                    throw new Error(staffData.message || "Failed to fetch staff records.");
+                }
+                if (!departmentsResponse.ok) {
+                    throw new Error(departmentData.message || "Failed to load departments.");
+                }
+                if (active) {
+                    setStaff(Array.isArray(staffData) ? staffData : []);
+                    setDepartments(Array.isArray(departmentData) ? departmentData : []);
+                }
+            } catch (err) {
+                if (active) setError(err.message || "Unable to load staff and departments.");
+            } finally {
+                if (active) setLoading(false);
+            }
+        }
+        loadInitialData();
+        return () => {
+            active = false;
+        };
     }, []);
 
     // Open the form for adding a new staff member
@@ -61,9 +95,10 @@ function Staff() {
             first_name: employee.first_name || "",
             last_name: employee.last_name || "",
             email: employee.email || "",
-            department: employee.department || "",
+            department_id: employee.department_id ? String(employee.department_id) : "",
             position: employee.position || "",
             employment_status: employee.employment_status || "Active",
+            password: "",
         });
         setError("");
         setShowForm(true);
@@ -92,7 +127,7 @@ function Staff() {
         const method = editingId ? "PUT" : "POST";
 
         try {
-            const response = await fetch(url, {
+            const response = await apiFetch(url, {
                 method,
                 headers: {
                     "Content-Type": "application/json",
@@ -132,7 +167,7 @@ function Staff() {
         setError("");
 
         try {
-            const response = await fetch(`${API_URL}/${employee.id}`, {
+            const response = await apiFetch(`${API_URL}/${employee.id}`, {
                 method: "DELETE",
             });
 
@@ -444,7 +479,7 @@ function Staff() {
                                         htmlFor="email"
                                         className="mb-2 block text-sm font-medium text-slate-700"
                                     >
-                                        Email
+                                        Email *
                                     </label>
                                     <input
                                         id="email"
@@ -453,25 +488,33 @@ function Staff() {
                                         value={formData.email}
                                         onChange={handleChange}
                                         placeholder="employee@example.com"
+                                        required
                                         className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/15"
                                     />
                                 </div>
 
                                 <div>
                                     <label
-                                        htmlFor="department"
+                                        htmlFor="department_id"
                                         className="mb-2 block text-sm font-medium text-slate-700"
                                     >
-                                        Department
+                                        Department *
                                     </label>
-                                    <input
-                                        id="department"
-                                        name="department"
-                                        value={formData.department}
+                                    <select
+                                        id="department_id"
+                                        name="department_id"
+                                        value={formData.department_id}
                                         onChange={handleChange}
-                                        placeholder="e.g. IT"
-                                        className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/15"
-                                    />
+                                        required
+                                        className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 outline-none focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/15"
+                                    >
+                                        <option value="">Select a department</option>
+                                        {departments.map((department) => (
+                                            <option key={department.id} value={department.id}>
+                                                {department.department_name}
+                                            </option>
+                                        ))}
+                                    </select>
                                 </div>
 
                                 <div>
@@ -487,6 +530,28 @@ function Staff() {
                                         value={formData.position}
                                         onChange={handleChange}
                                         placeholder="e.g. IT Officer"
+                                        className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/15"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label
+                                        htmlFor="password"
+                                        className="mb-2 block text-sm font-medium text-slate-700"
+                                    >
+                                        {editingId ? "New Password (optional)" : "Initial Password *"}
+                                    </label>
+                                    <input
+                                        id="password"
+                                        name="password"
+                                        type="password"
+                                        value={formData.password}
+                                        onChange={handleChange}
+                                        minLength={8}
+                                        maxLength={128}
+                                        required={!editingId}
+                                        autoComplete="new-password"
+                                        placeholder={editingId ? "Leave blank to keep current password" : "At least 8 characters"}
                                         className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/15"
                                     />
                                 </div>

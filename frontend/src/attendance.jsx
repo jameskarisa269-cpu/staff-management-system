@@ -1,5 +1,6 @@
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { apiFetch } from "./services/api";
 
 const API_URL = "http://localhost:5000/api/attendance";
 const STAFF_URL = "http://localhost:5000/api/staff";
@@ -35,13 +36,8 @@ export default function Attendance() {
     remarks: "",
   });
 
-  useEffect(() => {
-    loadAttendance();
-    loadStaff();
-  }, []);
-
-  async function requestJSON(url, options = {}) {
-    const response = await fetch(url, options);
+  const requestJSON = useCallback(async (url, options = {}) => {
+    const response = await apiFetch(url, options);
     const data = await response.json().catch(() => ({}));
 
     if (!response.ok) {
@@ -49,9 +45,9 @@ export default function Attendance() {
     }
 
     return data;
-  }
+  }, []);
 
-  async function loadAttendance() {
+  const loadAttendance = useCallback(async () => {
     setLoading(true);
     setError("");
 
@@ -66,17 +62,37 @@ export default function Attendance() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [requestJSON]);
 
-  async function loadStaff() {
-    try {
-      const data = await requestJSON(STAFF_URL);
-
-      setStaff(Array.isArray(data) ? data : data.staff || []);
-    } catch (err) {
-      console.error("Unable to load staff:", err);
+  useEffect(() => {
+    let active = true;
+    async function loadInitialData() {
+      try {
+        const [attendanceData, staffData] = await Promise.all([
+          requestJSON(API_URL),
+          requestJSON(STAFF_URL),
+        ]);
+        if (active) {
+          setRecords(
+            Array.isArray(attendanceData)
+              ? attendanceData
+              : attendanceData.attendance || [],
+          );
+          setStaff(Array.isArray(staffData) ? staffData : staffData.staff || []);
+        }
+      } catch (requestError) {
+        if (active) {
+          setError(requestError.message || "Unable to load attendance.");
+        }
+      } finally {
+        if (active) setLoading(false);
+      }
     }
-  }
+    loadInitialData();
+    return () => {
+      active = false;
+    };
+  }, [requestJSON]);
 
   function clearNotifications() {
     setError("");
@@ -302,40 +318,55 @@ export default function Attendance() {
 
         {/* QR Session Form */}
         {showSessionForm && (
-          <form
-            onSubmit={createSession}
-            className="mb-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
-          >
-            <h2 className="mb-4 text-xl font-bold text-slate-800">
-              Create QR Attendance Session
-            </h2>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4">
+            <div className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
+              <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
+                <h2 className="text-xl font-bold text-slate-800">
+                  Create QR Attendance Session
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => setShowSessionForm(false)}
+                  className="rounded-lg px-3 py-2 text-slate-500 hover:bg-slate-100"
+                  aria-label="Close session form"
+                >
+                  ✕
+                </button>
+              </div>
 
-            <label className="mb-2 block text-sm font-semibold text-slate-700">
-              Session expiry date and time
-            </label>
+              <form onSubmit={createSession} className="p-6">
+                <label className="mb-2 block text-sm font-semibold text-slate-700">
+                  Session expiry date and time
+                </label>
 
-            <input
-              type="datetime-local"
-              required
-              value={sessionForm.expires_at}
-              min={new Date(Date.now() + 2 * 60_000 - new Date().getTimezoneOffset() * 60_000)
-                .toISOString()
-                .slice(0, 16)}
-              onChange={(event) =>
-                setSessionForm({ expires_at: event.target.value })
-              }
-              className="mb-5 w-full max-w-md rounded-lg border border-slate-300 px-4 py-3"
-            />
+                <input
+                  type="datetime-local"
+                  required
+                  value={sessionForm.expires_at}
+                  onChange={(event) =>
+                    setSessionForm({ expires_at: event.target.value })
+                  }
+                  className="mb-5 w-full rounded-lg border border-slate-300 px-4 py-3"
+                />
 
-            <div>
-              <button
-                type="submit"
-                className="rounded-lg bg-blue-600 px-5 py-3 font-semibold text-white hover:bg-blue-700"
-              >
-                Create Session
-              </button>
+                <div className="flex gap-3">
+                  <button
+                    type="submit"
+                    className="rounded-lg bg-blue-600 px-5 py-3 font-semibold text-white hover:bg-blue-700"
+                  >
+                    Create Session
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowSessionForm(false)}
+                    className="rounded-lg border border-slate-300 px-5 py-3 font-semibold text-slate-700 hover:bg-slate-100"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
             </div>
-          </form>
+          </div>
         )}
 
         {/* Session Result */}
@@ -372,68 +403,88 @@ export default function Attendance() {
 
         {/* Check-In Form */}
         {showCheckInForm && (
-          <form
-            onSubmit={checkIn}
-            className="mb-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
-          >
-            <h2 className="mb-5 text-xl font-bold text-slate-800">
-              Record Staff Check-In
-            </h2>
-
-            <div className="grid gap-5 md:grid-cols-2">
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-slate-700">
-                  Staff Member
-                </label>
-
-                <select
-                  required
-                  value={checkInForm.staff_id}
-                  onChange={(event) =>
-                    setCheckInForm({
-                      ...checkInForm,
-                      staff_id: event.target.value,
-                    })
-                  }
-                  className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3"
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4">
+            <div className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
+              <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
+                <h2 className="text-xl font-bold text-slate-800">
+                  Record Staff Check-In
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => setShowCheckInForm(false)}
+                  className="rounded-lg px-3 py-2 text-slate-500 hover:bg-slate-100"
+                  aria-label="Close check-in form"
                 >
-                  <option value="">Select staff member</option>
-
-                  {staff.map((member) => (
-                    <option key={member.id} value={member.id}>
-                      {member.first_name} {member.last_name} — {member.employee_id}
-                    </option>
-                  ))}
-                </select>
+                  ✕
+                </button>
               </div>
 
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-slate-700">
-                  QR Token
-                </label>
+              <form onSubmit={checkIn} className="p-6">
+                <div className="grid gap-5 md:grid-cols-2">
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-slate-700">
+                      Staff Member
+                    </label>
 
-                <input
-                  required
-                  value={checkInForm.qr_token}
-                  onChange={(event) =>
-                    setCheckInForm({
-                      ...checkInForm,
-                      qr_token: event.target.value,
-                    })
-                  }
-                  placeholder="Enter or scan the QR token"
-                  className="w-full rounded-lg border border-slate-300 px-4 py-3"
-                />
-              </div>
+                    <select
+                      required
+                      value={checkInForm.staff_id}
+                      onChange={(event) =>
+                        setCheckInForm({
+                          ...checkInForm,
+                          staff_id: event.target.value,
+                        })
+                      }
+                      className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3"
+                    >
+                      <option value="">Select staff member</option>
+
+                      {staff.map((member) => (
+                        <option key={member.id} value={member.id}>
+                          {member.first_name} {member.last_name} — {member.employee_id}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-slate-700">
+                      QR Token
+                    </label>
+
+                    <input
+                      required
+                      value={checkInForm.qr_token}
+                      onChange={(event) =>
+                        setCheckInForm({
+                          ...checkInForm,
+                          qr_token: event.target.value,
+                        })
+                      }
+                      placeholder="Enter or scan the QR token"
+                      className="w-full rounded-lg border border-slate-300 px-4 py-3"
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-5 flex gap-3">
+                  <button
+                    type="submit"
+                    className="rounded-lg bg-green-600 px-5 py-3 font-semibold text-white hover:bg-green-700"
+                  >
+                    Record Attendance
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowCheckInForm(false)}
+                    className="rounded-lg border border-slate-300 px-5 py-3 font-semibold text-slate-700 hover:bg-slate-100"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
             </div>
-
-            <button
-              type="submit"
-              className="mt-5 rounded-lg bg-green-600 px-5 py-3 font-semibold text-white hover:bg-green-700"
-            >
-              Record Attendance
-            </button>
-          </form>
+          </div>
         )}
 
         {/* Statistics */}
@@ -471,73 +522,84 @@ export default function Attendance() {
 
         {/* Edit Record Form */}
         {editingRecord && (
-          <form
-            onSubmit={saveEdit}
-            className="mb-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
-          >
-            <h2 className="mb-5 text-xl font-bold text-slate-800">
-              Correct Attendance Record #{editingRecord.id}
-            </h2>
-
-            <div className="grid gap-5 md:grid-cols-2">
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-slate-700">
-                  Attendance Status
-                </label>
-
-                <select
-                  value={editForm.status}
-                  onChange={(event) =>
-                    setEditForm({
-                      ...editForm,
-                      status: event.target.value,
-                    })
-                  }
-                  className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3"
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4">
+            <div className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
+              <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
+                <h2 className="text-xl font-bold text-slate-800">
+                  Correct Attendance Record #{editingRecord.id}
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => setEditingRecord(null)}
+                  className="rounded-lg px-3 py-2 text-slate-500 hover:bg-slate-100"
+                  aria-label="Close attendance record form"
                 >
-                  <option value="Present">Present</option>
-                  <option value="Late">Late</option>
-                  <option value="Absent">Absent</option>
-                </select>
+                  ✕
+                </button>
               </div>
 
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-slate-700">
-                  Correction Remarks
-                </label>
+              <form onSubmit={saveEdit} className="p-6">
+                <div className="grid gap-5 md:grid-cols-2">
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-slate-700">
+                      Attendance Status
+                    </label>
 
-                <textarea
-                  rows={3}
-                  value={editForm.remarks}
-                  onChange={(event) =>
-                    setEditForm({
-                      ...editForm,
-                      remarks: event.target.value,
-                    })
-                  }
-                  placeholder="Explain why this record is being corrected"
-                  className="w-full rounded-lg border border-slate-300 px-4 py-3"
-                />
-              </div>
+                    <select
+                      value={editForm.status}
+                      onChange={(event) =>
+                        setEditForm({
+                          ...editForm,
+                          status: event.target.value,
+                        })
+                      }
+                      className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3"
+                    >
+                      <option value="Present">Present</option>
+                      <option value="Late">Late</option>
+                      <option value="Absent">Absent</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-slate-700">
+                      Correction Remarks
+                    </label>
+
+                    <textarea
+                      rows={3}
+                      value={editForm.remarks}
+                      onChange={(event) =>
+                        setEditForm({
+                          ...editForm,
+                          remarks: event.target.value,
+                        })
+                      }
+                      placeholder="Explain why this record is being corrected"
+                      className="w-full rounded-lg border border-slate-300 px-4 py-3"
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-5 flex gap-3">
+                  <button
+                    type="submit"
+                    className="rounded-lg bg-blue-600 px-5 py-3 font-semibold text-white hover:bg-blue-700"
+                  >
+                    Save Correction
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setEditingRecord(null)}
+                    className="rounded-lg border border-slate-300 px-5 py-3 font-semibold text-slate-700 hover:bg-slate-100"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
             </div>
-
-            <div className="mt-5 flex gap-3">
-              <button
-                type="submit"
-                className="rounded-lg bg-blue-600 px-5 py-3 font-semibold text-white hover:bg-blue-700"
-              >
-                Save Correction
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setEditingRecord(null)}
-                className="rounded-lg border border-slate-300 px-5 py-3 font-semibold text-slate-700 hover:bg-slate-100"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
+          </div>
         )}
 
         {/* Attendance Records */}

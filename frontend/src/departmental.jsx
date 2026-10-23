@@ -1,5 +1,6 @@
 
 import { useEffect, useState } from "react";
+import { apiFetch } from "./services/api";
 
 const API_URL = "http://localhost:5000/api/departments";
 const STAFF_URL = "http://localhost:5000/api/staff";
@@ -63,7 +64,7 @@ export default function Departmental() {
     setError("");
 
     try {
-      const response = await fetch(API_URL);
+      const response = await apiFetch(API_URL);
       const data = await readApiResponse(response);
 
       if (!response.ok) {
@@ -82,7 +83,7 @@ export default function Departmental() {
 
   async function loadStaff() {
     try {
-      const response = await fetch(STAFF_URL);
+      const response = await apiFetch(STAFF_URL);
       const data = await readApiResponse(response);
 
       if (response.ok) {
@@ -137,7 +138,7 @@ export default function Departmental() {
       : API_URL;
 
     try {
-      const response = await fetch(url, {
+      const response = await apiFetch(url, {
         method: editingId ? "PUT" : "POST",
         headers: {
           "Content-Type": "application/json",
@@ -178,7 +179,7 @@ export default function Departmental() {
     setMessage("");
 
     try {
-      const response = await fetch(`${API_URL}/${id}`, {
+      const response = await apiFetch(`${API_URL}/${id}`, {
         method: "DELETE",
       });
 
@@ -279,109 +280,111 @@ export default function Departmental() {
 
         {/* Department Form */}
         {showForm && (
-          <div className="mb-8 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="mb-6 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-slate-800">
-                {editingId ? "Edit Department" : "Add New Department"}
-              </h2>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setShowForm(false);
-                  setError("");
-                }}
-                className="rounded-lg px-3 py-2 text-slate-500 hover:bg-slate-100"
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleSubmit}>
-              <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-                <div>
-                  <label className="mb-2 block text-sm font-semibold text-slate-700">
-                    Department Name *
-                  </label>
-                  <input
-                    type="text"
-                    name="department_name"
-                    value={form.department_name}
-                    onChange={handleChange}
-                    placeholder="e.g. Information Technology"
-                    required
-                    maxLength={100}
-                    className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/15"
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-2 block text-sm font-semibold text-slate-700">
-                    Department Manager
-                  </label>
-                  <select
-                    name="manager_id"
-                    value={form.manager_id}
-                    onChange={handleChange}
-                    className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 outline-none focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/15"
-                  >
-                    <option value="">No manager assigned</option>
-                    {staff.map((member) => (
-                      <option key={member.id} value={member.id}>
-                        {member.first_name} {member.last_name} (
-                        {member.employee_id})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="mb-2 block text-sm font-semibold text-slate-700">
-                    Status
-                  </label>
-                  <select
-                    name="status"
-                    value={form.status}
-                    onChange={handleChange}
-                    className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 outline-none focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/15"
-                  >
-                    <option value="Active">Active</option>
-                    <option value="Inactive">Inactive</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="mb-2 block text-sm font-semibold text-slate-700">
-                    Description
-                  </label>
-                  <textarea
-                    name="description"
-                    value={form.description}
-                    onChange={handleChange}
-                    placeholder="Describe the department's responsibilities"
-                    rows={3}
-                    className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/15"
-                  />
-                </div>
-              </div>
-
-              <div className="mt-6 flex flex-wrap gap-3">
-                <button
-                  type="submit"
-                  className="rounded-lg bg-[#800000] px-6 py-3 font-semibold text-white hover:bg-[#650000]"
-                >
-                  {editingId ? "Update Department" : "Save Department"}
-                </button>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4">
+            <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
+              <div className="mb-6 flex items-center justify-between border-b border-slate-200 px-6 py-5">
+                <h2 className="text-xl font-bold text-slate-800">
+                  {editingId ? "Edit Department" : "Add New Department"}
+                </h2>
 
                 <button
                   type="button"
-                  onClick={() => setShowForm(false)}
-                  className="rounded-lg border border-slate-300 px-6 py-3 font-semibold text-slate-700 hover:bg-slate-100"
+                  onClick={() => {
+                    setShowForm(false);
+                    setError("");
+                  }}
+                  className="rounded-lg px-3 py-2 text-slate-500 hover:bg-slate-100"
                 >
-                  Cancel
+                  ✕
                 </button>
               </div>
-            </form>
+
+              <form onSubmit={handleSubmit} className="px-6 pb-6 pt-0">
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-slate-700">
+                      Department Name *
+                    </label>
+                    <input
+                      type="text"
+                      name="department_name"
+                      value={form.department_name}
+                      onChange={handleChange}
+                      placeholder="e.g. Information Technology"
+                      required
+                      maxLength={100}
+                      className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/15"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-slate-700">
+                      Department Manager
+                    </label>
+                    <select
+                      name="manager_id"
+                      value={form.manager_id}
+                      onChange={handleChange}
+                      className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 outline-none focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/15"
+                    >
+                      <option value="">No manager assigned</option>
+                      {staff.map((member) => (
+                        <option key={member.id} value={member.id}>
+                          {member.first_name} {member.last_name} (
+                          {member.employee_id})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-slate-700">
+                      Status
+                    </label>
+                    <select
+                      name="status"
+                      value={form.status}
+                      onChange={handleChange}
+                      className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 outline-none focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/15"
+                    >
+                      <option value="Active">Active</option>
+                      <option value="Inactive">Inactive</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-slate-700">
+                      Description
+                    </label>
+                    <textarea
+                      name="description"
+                      value={form.description}
+                      onChange={handleChange}
+                      placeholder="Describe the department's responsibilities"
+                      rows={3}
+                      className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/15"
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-6 flex flex-wrap gap-3">
+                  <button
+                    type="submit"
+                    className="rounded-lg bg-[#800000] px-6 py-3 font-semibold text-white hover:bg-[#650000]"
+                  >
+                    {editingId ? "Update Department" : "Save Department"}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowForm(false)}
+                    className="rounded-lg border border-slate-300 px-6 py-3 font-semibold text-slate-700 hover:bg-slate-100"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         )}
 

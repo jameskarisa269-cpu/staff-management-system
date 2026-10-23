@@ -2,7 +2,8 @@
 const db = require("../config/database");
 
 const Task = {
-  async getAll() {
+  async getAll(staffId = null) {
+    const filter = staffId === null ? "" : "WHERE t.assigned_to = ?";
     const [rows] = await db.query(`
       SELECT
         t.id,
@@ -22,8 +23,9 @@ const Task = {
       FROM tasks t
       LEFT JOIN staff a ON t.assigned_to = a.id
       LEFT JOIN staff c ON t.created_by = c.id
+      ${filter}
       ORDER BY t.created_at DESC
-    `);
+    `, staffId === null ? [] : [staffId]);
 
     return rows;
   },
@@ -55,7 +57,7 @@ const Task = {
     return rows[0];
   },
 
-  async create(data) {
+  async create(data, createdBy = null) {
     const {
       title,
       description,
@@ -68,14 +70,15 @@ const Task = {
 
     const [result] = await db.query(
       `INSERT INTO tasks
-       (title, description, assigned_to,
+       (title, description, assigned_to, created_by,
         priority, status, start_date, due_date, completed_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?,
          CASE WHEN ? = 'Completed' THEN NOW() ELSE NULL END)`,
       [
         title,
         description || null,
         assigned_to || null,
+        createdBy,
         priority || "Medium",
         status || "Pending",
         start_date || null,
@@ -132,6 +135,25 @@ const Task = {
 
     const [rows] = await db.query("SELECT id FROM tasks WHERE id = ?", [id]);
     return rows.length > 0;
+  },
+
+  async updateStatus(id, staffId, status) {
+    const [result] = await db.query(
+      `UPDATE tasks SET status = ?,
+       completed_at = CASE
+         WHEN ? = 'Completed' THEN COALESCE(completed_at, NOW())
+         ELSE NULL
+       END
+       WHERE id = ? AND assigned_to = ?`,
+      [status, status, id, staffId]
+    );
+    if (result.affectedRows) return result.affectedRows;
+
+    const [rows] = await db.query(
+      "SELECT id FROM tasks WHERE id = ? AND assigned_to = ?",
+      [id, staffId]
+    );
+    return rows.length ? 1 : 0;
   },
 
   async delete(id) {

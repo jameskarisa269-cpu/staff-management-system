@@ -63,17 +63,18 @@ const Report = {
   async getStaffReport() {
     const [rows] = await db.query(`
       SELECT
-        id,
-        employee_id,
-        first_name,
-        last_name,
-        email,
-        department,
-        position,
-        employment_status,
-        created_at
-      FROM staff
-      ORDER BY created_at DESC
+        s.id,
+        s.employee_id,
+        s.first_name,
+        s.last_name,
+        s.email,
+        COALESCE(d.department_name, s.department) AS department,
+        s.position,
+        s.employment_status,
+        s.created_at
+      FROM staff s
+      LEFT JOIN departments d ON d.id = s.department_id
+      ORDER BY s.created_at DESC
     `);
 
     return rows;
@@ -90,8 +91,7 @@ const Report = {
         COUNT(s.id) AS total_staff,
         SUM(s.employment_status = 'Active') AS active_staff
       FROM departments d
-      LEFT JOIN staff s
-        ON s.department = d.department_name
+      LEFT JOIN staff s ON s.department_id = d.id
       GROUP BY
         d.id,
         d.department_name,
@@ -115,9 +115,10 @@ const Report = {
         s.employee_id,
         s.first_name,
         s.last_name,
-        s.department
+        COALESCE(d.department_name, s.department) AS department
       FROM attendance_records ar
       INNER JOIN staff s ON s.id = ar.staff_id
+      LEFT JOIN departments d ON d.id = s.department_id
       WHERE 1 = 1
     `;
 
