@@ -1,7 +1,7 @@
 INSERT INTO departments (department_name, description, manager_id, status)
 SELECT
     s.department,
-    CONCAT('Sample data - managed by ', s.first_name, ' ', s.last_name),
+    CONCAT('Managed by ', s.first_name, ' ', s.last_name),
     s.id,
     'Active'
 FROM staff s
@@ -32,7 +32,7 @@ SELECT s.id,
            ELSE TIMESTAMP(sample.attendance_date, sample.check_in_time)
        END,
        sample.status,
-       'Sample data - replace with actual attendance.'
+       NULL
 FROM (
     SELECT 'EMP001' AS employee_id, DATE('2026-10-13') AS attendance_date,
            'Present' AS status, TIME('08:42:00') AS check_in_time

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "./services/api";
+import Icon from "./components/Icon";
 
 const API_URL = "http://localhost:5000/api/tasks";
 const STAFF_URL = "http://localhost:5000/api/staff";
@@ -33,6 +34,22 @@ function dateValue(value) {
   return value ? String(value).slice(0, 10) : "";
 }
 
+function staffName(member) {
+  return `${member.first_name} ${member.last_name}`.trim();
+}
+
+function findStaffMember(value, staff) {
+  const searchValue = value.trim().toLowerCase();
+  if (!searchValue) return null;
+
+  const matches = staff.filter((member) =>
+    [staffName(member), member.employee_id, member.email]
+      .filter(Boolean)
+      .some((candidate) => candidate.trim().toLowerCase() === searchValue),
+  );
+  return matches.length === 1 ? matches[0] : null;
+}
+
 function priorityStyle(priority) {
   const styles = {
     Low: "bg-slate-100 text-slate-700",
@@ -58,6 +75,8 @@ export default function Tasks({ user }) {
   const [tasks, setTasks] = useState([]);
   const [staff, setStaff] = useState([]);
   const [form, setForm] = useState(emptyForm);
+  const [assigneeInput, setAssigneeInput] = useState("");
+  const [staffLoading, setStaffLoading] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [search, setSearch] = useState("");
@@ -65,6 +84,7 @@ export default function Tasks({ user }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [formError, setFormError] = useState("");
   const [message, setMessage] = useState("");
 
   useEffect(() => {
@@ -110,16 +130,36 @@ export default function Tasks({ user }) {
     }
   }
 
+  async function refreshStaff() {
+    setStaffLoading(true);
+    setFormError("");
+    try {
+      const data = await readResponse(await apiFetch(STAFF_URL));
+      const members = Array.isArray(data) ? data : data.staff || [];
+      setStaff(members);
+    } catch (err) {
+      setFormError(err.message || "Unable to load staff members.");
+    } finally {
+      setStaffLoading(false);
+    }
+  }
+
   function openCreateForm() {
     setEditingId(null);
     setForm({ ...emptyForm });
+    setAssigneeInput("");
     setError("");
+    setFormError("");
     setMessage("");
     setShowForm(true);
+    refreshStaff();
   }
 
   function openEditForm(task) {
     setEditingId(task.id);
+    const assignedStaff = staff.find(
+      (member) => String(member.id) === String(task.assigned_to),
+    );
     setForm({
       title: task.title || "",
       description: task.description || "",
@@ -129,15 +169,26 @@ export default function Tasks({ user }) {
       start_date: dateValue(task.start_date),
       due_date: dateValue(task.due_date),
     });
+    setAssigneeInput(
+      assignedStaff ? staffName(assignedStaff) : task.assigned_staff_name || "",
+    );
     setError("");
+    setFormError("");
     setMessage("");
     setShowForm(true);
+    refreshStaff();
   }
 
   async function saveTask(event) {
     event.preventDefault();
+    if (assigneeInput.trim() && !form.assigned_to) {
+      setFormError("Choose a matching staff name, email, or employee ID from the suggestions.");
+      return;
+    }
+
     setSaving(true);
     setError("");
+    setFormError("");
     setMessage("");
 
     try {
@@ -154,14 +205,16 @@ export default function Tasks({ user }) {
           }),
         },
       );
-      await readResponse(response);
-      setMessage(editingId ? "Task updated successfully." : "Task created successfully.");
+      const data = await readResponse(response);
+      setMessage(data.message || (editingId
+        ? "Task updated successfully."
+        : "Task created successfully."));
       setShowForm(false);
       setEditingId(null);
       setForm({ ...emptyForm });
       await loadTasks();
     } catch (err) {
-      setError(err.message || "Unable to save task.");
+      setFormError(err.message || "Unable to save task.");
     } finally {
       setSaving(false);
     }
@@ -224,7 +277,10 @@ export default function Tasks({ user }) {
             onClick={openCreateForm}
             className="rounded-lg bg-[#800000] px-5 py-3 font-semibold text-white shadow-sm transition hover:bg-[#650000]"
           >
-            + Add Task
+            <span className="inline-flex items-center gap-2">
+              <Icon name="plus" size={18} />
+              Add Task
+            </span>
           </button>
         </div>}
 
@@ -266,11 +322,16 @@ export default function Tasks({ user }) {
                   className="rounded-lg px-3 py-2 text-slate-500 hover:bg-slate-100"
                   aria-label="Close task form"
                 >
-                  ✕
+                  <Icon name="close" />
                 </button>
               </div>
 
               <form onSubmit={saveTask} className="px-6 pb-6">
+                {formError && (
+                  <p role="alert" className="mb-5 rounded-lg border border-red-200 bg-red-50 p-3 text-red-700">
+                    {formError}
+                  </p>
+                )}
                 <div className="grid gap-5 md:grid-cols-2">
                   <div>
                     <label htmlFor="task-title" className="mb-2 block text-sm font-semibold text-slate-700">
@@ -291,19 +352,57 @@ export default function Tasks({ user }) {
                     <label htmlFor="task-assignee" className="mb-2 block text-sm font-semibold text-slate-700">
                       Assign to
                     </label>
-                    <select
+                    <input
                       id="task-assignee"
-                      value={form.assigned_to}
-                      onChange={(event) => setForm({ ...form, assigned_to: event.target.value })}
+                      type="text"
+                      list="task-staff-options"
+                      autoComplete="off"
+                      value={assigneeInput}
+                      onChange={(event) => {
+                        const value = event.target.value;
+                        const member = findStaffMember(value, staff);
+                        setAssigneeInput(value);
+                        setFormError("");
+                        setForm((current) => ({
+                          ...current,
+                          assigned_to: member ? String(member.id) : "",
+                        }));
+                      }}
                       className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3"
-                    >
-                      <option value="">Unassigned</option>
+                      placeholder={staffLoading ? "Loading staff members..." : staff.length ? "Search by name, email, or employee ID" : "No staff members available"}
+                      aria-describedby="task-assignee-help"
+                      disabled={staffLoading}
+                    />
+                    <datalist id="task-staff-options">
                       {staff.map((member) => (
-                        <option key={member.id} value={member.id}>
-                          {member.first_name} {member.last_name} — {member.employee_id}
-                        </option>
+                        <option
+                          key={`${member.id}-name`}
+                          value={staffName(member)}
+                          label={`${member.employee_id}${member.email ? ` — ${member.email}` : ""}`}
+                        />
                       ))}
-                    </select>
+                      {staff.map((member) => (
+                        <option
+                          key={`${member.id}-employee`}
+                          value={member.employee_id}
+                          label={`${staffName(member)}${member.email ? ` — ${member.email}` : ""}`}
+                        />
+                      ))}
+                      {staff.filter((member) => member.email).map((member) => (
+                        <option
+                          key={`${member.id}-email`}
+                          value={member.email}
+                          label={`${staffName(member)} — ${member.employee_id}`}
+                        />
+                      ))}
+                    </datalist>
+                    <p id="task-assignee-help" className="mt-1 text-xs text-slate-500">
+                      {staffLoading
+                        ? "Refreshing staff list..."
+                        : staff.length
+                        ? "Select a suggestion to assign this task, or leave blank for Unassigned."
+                        : "Add a staff member first to assign this task."}
+                    </p>
                   </div>
 
                   <div>

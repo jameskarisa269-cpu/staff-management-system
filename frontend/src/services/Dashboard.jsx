@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Staff from "../staff";
 import Departmental from "../departmental";
 import Attendance from "../attendance";
@@ -6,7 +6,9 @@ import Tasks from "../tasks";
 import Asset from "../asset";
 import Reports from "../reports";
 import Notifications from "../notifications";
+import StaffAttendance from "../StaffAttendance";
 import AuditLogs from "../auditlog";
+import Icon from "../components/Icon";
 import { apiFetch } from "./api";
 
 const REPORTS_URL = "http://localhost:5000/api/reports";
@@ -30,15 +32,15 @@ async function fetchDashboardSummary() {
 }
 
 const modules = [
-  { name: "Dashboard", icon: "▦" },
-  { name: "Staff", icon: "👥" },
-  { name: "Departments & Roles", icon: "🏢" },
-  { name: "Attendance", icon: "📅" },
-  { name: "Tasks", icon: "✓" },
-  { name: "Assets", icon: "💼" },
-  { name: "Reports", icon: "📊" },
-  { name: "Notifications", icon: "🔔" },
-  { name: "Audit Logs", icon: "📋" },
+  { name: "Dashboard", icon: "dashboard" },
+  { name: "Staff", icon: "users" },
+  { name: "Departments & Roles", icon: "building" },
+  { name: "Attendance", icon: "calendar" },
+  { name: "Tasks", icon: "checklist" },
+  { name: "Assets", icon: "briefcase" },
+  { name: "Reports", icon: "chart" },
+  { name: "Notifications", icon: "bell" },
+  { name: "Audit Logs", icon: "clipboard" },
 ];
 
 const summaryCards = [
@@ -190,8 +192,8 @@ function DashboardOverview({ onOpenModule }) {
             >
               <div className="flex items-center justify-between gap-3">
                 <h2 className="font-semibold text-slate-700">{card.title}</h2>
-                <span className="text-xs font-medium text-slate-400">
-                  View module →
+                <span className="inline-flex items-center gap-1 text-xs font-medium text-slate-400">
+                  View module <Icon name="arrowRight" size={14} />
                 </span>
               </div>
               <p className="mt-3 text-3xl font-bold text-slate-900">
@@ -224,11 +226,13 @@ function DashboardOverview({ onOpenModule }) {
                 onClick={() => onOpenModule(module.name)}
                 className="rounded-xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[#800000] hover:shadow-md"
               >
-                <span className="text-3xl">{module.icon}</span>
+                <Icon name={module.icon} size={30} className="text-[#800000]" />
                 <h3 className="mt-3 font-semibold text-slate-800">
                   {module.name}
                 </h3>
-                <p className="mt-1 text-sm text-slate-500">Open module →</p>
+                <span className="mt-1 inline-flex items-center gap-1 text-sm text-slate-500">
+                  Open module <Icon name="arrowRight" size={14} />
+                </span>
               </button>
             ))}
         </div>
@@ -239,18 +243,69 @@ function DashboardOverview({ onOpenModule }) {
 
 export default function Dashboard({ user, onLogout }) {
   const staffModules = [
-    { name: "Tasks", icon: "✓" },
-    { name: "Reports", icon: "📊" },
+    { name: "Attendance", icon: "calendar" },
+    { name: "Tasks", icon: "checklist" },
+    { name: "Reports", icon: "chart" },
+    { name: "Notifications", icon: "bell" },
   ];
   const visibleModules = user.role === "admin" ? modules : staffModules;
   const [activeModule, setActiveModule] = useState(
     user.role === "admin" ? "Dashboard" : "Tasks",
   );
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const mobileMenuButtonRef = useRef(null);
+  const mobileCloseButtonRef = useRef(null);
+
+  useEffect(() => {
+    if (!mobileNavOpen) return undefined;
+
+    mobileCloseButtonRef.current?.focus();
+    function closeOnEscape(event) {
+      if (event.key === "Escape") {
+        setMobileNavOpen(false);
+        mobileMenuButtonRef.current?.focus();
+        return;
+      }
+
+      if (event.key === "Tab") {
+        const drawer = document.getElementById("mobile-navigation");
+        const focusable = drawer?.querySelectorAll(
+          'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        );
+        if (!focusable?.length) return;
+
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      }
+    }
+
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [mobileNavOpen]);
+
+  function openModule(name) {
+    setActiveModule(name);
+    setMobileNavOpen(false);
+    if (mobileNavOpen) mobileMenuButtonRef.current?.focus();
+  }
 
   return (
     <div className="flex min-h-screen bg-white font-sans text-slate-900">
+      <a
+        href="#main-content"
+        className="skip-link"
+      >
+        Skip to main content
+      </a>
       {/* MAIN SIDEBAR */}
-      <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col overflow-y-auto bg-[#5c0011] px-4 py-6 text-white">
+      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col overflow-y-auto bg-[#5c0011] px-4 py-6 text-white md:flex">
         <h1 className="mb-10 px-2 text-2xl font-bold">
           Staff<span className="text-[#e8a0b0]">Hub</span>
         </h1>
@@ -259,21 +314,20 @@ export default function Dashboard({ user, onLogout }) {
           MAIN MENU
         </p>
 
-        <nav className="flex flex-col gap-2">
+        <nav aria-label="Main navigation" className="flex flex-col gap-2">
           {visibleModules.map((module) => (
             <button
               key={module.name}
               type="button"
-              onClick={() => setActiveModule(module.name)}
-              className={`flex items-center gap-3 rounded-lg px-3 py-3 text-left text-sm transition ${
+              aria-current={activeModule === module.name ? "page" : undefined}
+              onClick={() => openModule(module.name)}
+              className={`flex min-h-11 items-center gap-3 rounded-lg px-3 py-3 text-left text-sm transition ${
                 activeModule === module.name
                   ? "bg-[#800000] font-semibold text-white"
                   : "text-slate-300 hover:bg-slate-800 hover:text-white"
               }`}
             >
-              <span className="w-6 text-center text-lg">
-                {module.icon}
-              </span>
+              <Icon name={module.icon} size={20} className="shrink-0" />
               <span>{module.name}</span>
             </button>
           ))}
@@ -289,21 +343,127 @@ export default function Dashboard({ user, onLogout }) {
         </div>
       </aside>
 
+      {mobileNavOpen && (
+        <div className="mobile-nav-layer md:hidden">
+          <button
+            type="button"
+            className="mobile-nav-backdrop"
+            aria-label="Close navigation menu"
+            onClick={() => {
+              setMobileNavOpen(false);
+              mobileMenuButtonRef.current?.focus();
+            }}
+          />
+          <aside
+            id="mobile-navigation"
+            className="mobile-nav-drawer"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="mobile-navigation-title"
+          >
+            <div className="mb-8 flex items-center justify-between">
+              <h2 id="mobile-navigation-title" className="px-2 text-2xl font-bold">
+                Staff<span className="text-[#e8a0b0]">Hub</span>
+              </h2>
+              <button
+                ref={mobileCloseButtonRef}
+                type="button"
+                onClick={() => {
+                  setMobileNavOpen(false);
+                  mobileMenuButtonRef.current?.focus();
+                }}
+                aria-label="Close navigation menu"
+                className="flex h-11 w-11 items-center justify-center rounded-lg text-white hover:bg-slate-800"
+              >
+                <Icon name="close" size={22} />
+              </button>
+            </div>
+            <p className="mb-3 px-3 text-xs font-semibold tracking-widest text-slate-300">
+              MAIN MENU
+            </p>
+            <nav aria-label="Main navigation" className="flex flex-col gap-2">
+              {visibleModules.map((module) => (
+                <button
+                  key={module.name}
+                  type="button"
+                  aria-current={activeModule === module.name ? "page" : undefined}
+                  onClick={() => openModule(module.name)}
+                  className={`flex min-h-11 items-center gap-3 rounded-lg px-3 py-3 text-left text-sm ${
+                    activeModule === module.name
+                      ? "bg-[#800000] font-semibold text-white"
+                      : "text-slate-200 hover:bg-slate-800 hover:text-white"
+                  }`}
+                >
+                  <Icon name={module.icon} size={20} className="shrink-0" />
+                  <span>{module.name}</span>
+                </button>
+              ))}
+            </nav>
+          </aside>
+        </div>
+      )}
+
       {/* MAIN CONTENT */}
-      <main className="flex min-w-0 flex-1 flex-col">
+      <main
+        id="main-content"
+        aria-label="Main content"
+        tabIndex={-1}
+        className="flex min-w-0 flex-1 flex-col"
+      >
         {/* HEADER */}
-        <header className="flex items-center justify-between gap-4 border-b border-slate-200 bg-white px-6 py-5">
-          <div>
-            <p className="text-xs font-semibold tracking-wider text-[#800000]">
+        <header className="app-header flex min-h-14 items-center justify-between gap-2 border-b border-slate-200 bg-white px-2 py-2 sm:min-h-20 sm:gap-4 sm:px-6 sm:py-4">
+          <div className="flex min-w-0 items-center gap-3">
+            <button
+              ref={mobileMenuButtonRef}
+              type="button"
+              onClick={() => setMobileNavOpen(true)}
+              aria-label="Open navigation menu"
+              aria-expanded={mobileNavOpen}
+              aria-controls="mobile-navigation"
+              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 md:hidden"
+            >
+              <Icon name="menu" size={22} />
+            </button>
+            <div className="min-w-0">
+            <p className="hidden text-xs font-semibold tracking-wider text-[#800000] sm:block">
               STAFF MANAGEMENT SYSTEM
             </p>
-            <h2 className="mt-1 text-2xl font-bold text-slate-800">
+            <h2 className="truncate text-base font-bold text-slate-800 sm:mt-1 sm:text-2xl">
               {activeModule}
             </h2>
+            </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#f5e8eb] font-bold text-[#800000]">
+          <div className="flex min-w-0 items-center justify-end gap-2 sm:gap-3">
+            {user.role === "staff" && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => openModule("Attendance")}
+                  aria-label="Check in"
+                  title="Check in"
+                  className="inline-flex h-10 w-10 shrink-0 items-center justify-center gap-2 rounded-lg bg-[#800000] text-sm font-semibold text-white hover:bg-[#650000] sm:h-11 sm:w-auto sm:px-3 sm:py-2"
+                >
+                  <Icon name="calendar" size={18} />
+                  <span className="hidden sm:inline">Check in</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => openModule("Notifications")}
+                  aria-label="Open notifications"
+                  title="Notifications"
+                  className={`relative flex h-11 w-11 items-center justify-center rounded-lg border ${
+                    activeModule === "Notifications"
+                      ? "border-[#800000] bg-[#f5e8eb] text-[#800000]"
+                      : "border-slate-300 text-slate-600 hover:bg-slate-50"
+                  }`}
+                >
+                  <Icon name="bell" size={20} />
+                  <span className="sr-only">Notifications</span>
+                </button>
+              </>
+            )}
+            <div className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#f5e8eb] font-bold text-[#800000] sm:flex">
               {(user.name || "U").charAt(0).toUpperCase()}
             </div>
             <div className="hidden sm:block">
@@ -313,7 +473,7 @@ export default function Dashboard({ user, onLogout }) {
             <button
               type="button"
               onClick={onLogout}
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              className="min-h-10 shrink-0 whitespace-nowrap rounded-lg border border-slate-300 px-2 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 sm:min-h-11 sm:px-3 sm:text-sm"
             >
               Sign out
             </button>
@@ -332,27 +492,30 @@ export default function Dashboard({ user, onLogout }) {
             <Departmental />
           ) : user.role === "admin" && activeModule === "Attendance" ? (
             <Attendance />
+          ) : user.role === "staff" && activeModule === "Attendance" ? (
+            <StaffAttendance user={user} />
           ) : activeModule === "Tasks" ? (
             <Tasks user={user} />
           ) : user.role === "admin" && activeModule === "Assets" ? (
             <Asset />
           ) : activeModule === "Reports" ? (
             <Reports user={user} />
-          ) : user.role === "admin" && activeModule === "Notifications" ? (
-            <Notifications />
+          ) : activeModule === "Notifications" ? (
+            <Notifications user={user} />
           ) : user.role === "admin" && activeModule === "Audit Logs" ? (
             <AuditLogs />
           ) : user.role === "admin" && activeModule === "Dashboard" ? (
             <DashboardOverview onOpenModule={setActiveModule} />
           ) : (
             <div className="flex min-h-80 flex-col items-center justify-center rounded-xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-              <span className="text-5xl">
-                {
-                  modules.find(
-                    (module) => module.name === activeModule
-                  )?.icon
+              <Icon
+                name={
+                  modules.find((module) => module.name === activeModule)?.icon ||
+                  "dashboard"
                 }
-              </span>
+                size={48}
+                className="text-[#800000]"
+              />
 
               <h2 className="mt-4 text-xl font-bold text-slate-800">
                 {activeModule}

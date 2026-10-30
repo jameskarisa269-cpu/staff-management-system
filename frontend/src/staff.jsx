@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "./services/api";
+import Icon from "./components/Icon";
 
 const API_URL = "http://localhost:5000/api/staff";
 const DEPARTMENTS_URL = "http://localhost:5000/api/departments";
@@ -219,7 +220,10 @@ function Staff() {
                             onClick={handleAdd}
                             className="rounded-lg bg-[#800000] px-5 py-3 font-semibold text-white shadow-sm transition hover:bg-[#650000]"
                         >
-                            + Add Staff
+                            <span className="inline-flex items-center gap-2">
+                                <Icon name="plus" size={18} />
+                                Add Staff
+                            </span>
                         </button>
                     </header>
 
@@ -416,7 +420,7 @@ function Staff() {
                                 aria-label="Close form"
                                 className="rounded-lg px-3 py-2 text-xl text-slate-500 hover:bg-slate-100 hover:text-slate-800"
                             >
-                                ×
+                                <Icon name="close" />
                             </button>
                         </div>
 

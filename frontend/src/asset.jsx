@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "./services/api";
+import Icon from "./components/Icon";
+import { cleanAssetDescription } from "./utils/displayText";
 
 const API_URL = "http://localhost:5000/api/assets";
 const STAFF_URL = "http://localhost:5000/api/staff";
@@ -125,7 +127,7 @@ export default function Asset() {
       asset_tag: asset.asset_tag || "",
       asset_name: asset.asset_name || "",
       category: asset.category || "",
-      description: asset.description || "",
+      description: cleanAssetDescription(asset),
       serial_number: asset.serial_number || "",
       asset_condition: asset.asset_condition || "Good",
       status: asset.status || "Available",
@@ -230,6 +232,7 @@ export default function Asset() {
     const searchable = [
       asset.asset_tag,
       asset.asset_name,
+      cleanAssetDescription(asset),
       asset.category,
       asset.serial_number,
       asset.location,
@@ -306,7 +309,10 @@ export default function Asset() {
             }}
             className="rounded-lg bg-blue-600 px-5 py-3 font-semibold text-white hover:bg-blue-700"
           >
-            + Add Asset
+            <span className="inline-flex items-center gap-2">
+              <Icon name="plus" size={18} />
+              Add Asset
+            </span>
           </button>
         </div>
 
@@ -347,7 +353,7 @@ export default function Asset() {
                   className="rounded-lg px-3 py-2 text-gray-500 hover:bg-gray-100"
                   aria-label="Close asset form"
                 >
-                  ✕
+                  <Icon name="close" />
                 </button>
               </div>
 
@@ -602,6 +608,11 @@ export default function Asset() {
                         <p className="mt-1 text-xs text-gray-500">
                           {asset.asset_tag}
                         </p>
+                        {cleanAssetDescription(asset) && (
+                          <p className="mt-1 text-xs text-gray-500">
+                            {cleanAssetDescription(asset)}
+                          </p>
+                        )}
                         {asset.serial_number && (
                           <p className="mt-1 text-xs text-gray-400">
                             SN: {asset.serial_number}

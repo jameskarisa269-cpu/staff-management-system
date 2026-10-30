@@ -1,6 +1,8 @@
 
 import { useEffect, useState } from "react";
 import { apiFetch } from "./services/api";
+import Icon from "./components/Icon";
+import { cleanSeedPrefix } from "./utils/displayText";
 
 const API_URL = "http://localhost:5000/api/departments";
 const STAFF_URL = "http://localhost:5000/api/staff";
@@ -112,7 +114,7 @@ export default function Departmental() {
   function openEditForm(department) {
     setForm({
       department_name: department.department_name || "",
-      description: department.description || "",
+      description: cleanSeedPrefix(department.description) || "",
       manager_id: department.manager_id ?? "",
       status: department.status || "Active",
     });
@@ -203,7 +205,7 @@ export default function Departmental() {
       (department.department_name || "")
         .toLowerCase()
         .includes(searchText) ||
-      (department.description || "")
+      (cleanSeedPrefix(department.description) || "")
         .toLowerCase()
         .includes(searchText) ||
       (department.manager_name || "")
@@ -231,7 +233,10 @@ export default function Departmental() {
             onClick={openAddForm}
             className="rounded-lg bg-[#800000] px-5 py-3 font-semibold text-white shadow-sm transition hover:bg-[#650000]"
           >
-            + Add Department
+            <span className="inline-flex items-center gap-2">
+              <Icon name="plus" size={18} />
+              Add Department
+            </span>
           </button>
         </div>
 
@@ -294,8 +299,9 @@ export default function Departmental() {
                     setError("");
                   }}
                   className="rounded-lg px-3 py-2 text-slate-500 hover:bg-slate-100"
+                  aria-label="Close department form"
                 >
-                  ✕
+                  <Icon name="close" />
                 </button>
               </div>
 
@@ -442,7 +448,7 @@ export default function Departmental() {
                       </td>
 
                       <td className="max-w-xs px-6 py-4 text-slate-600">
-                        {department.description || "—"}
+                        {cleanSeedPrefix(department.description) || "—"}
                       </td>
 
                       <td className="px-6 py-4 text-slate-600">

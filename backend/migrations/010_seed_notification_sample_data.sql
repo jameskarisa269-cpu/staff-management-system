@@ -3,8 +3,8 @@ SELECT sample.staff_id, sample.title, sample.message, sample.type, sample.is_rea
 FROM (
     SELECT
         s.id AS staff_id,
-        'Sample data - Task reminder' AS title,
-        'Sample data - Please review your assigned tasks and update their status.' AS message,
+        'Task reminder' AS title,
+        'Please review your assigned tasks and update their status.' AS message,
         'Task' AS type,
         FALSE AS is_read
     FROM staff s
@@ -14,8 +14,8 @@ FROM (
 
     SELECT
         s.id,
-        'Sample data - Attendance update',
-        'Sample data - Please check your attendance records and contact the administrator about any correction.',
+        'Attendance update',
+        'Please check your attendance records and contact the administrator about any correction.',
         'Attendance',
         TRUE
     FROM staff s
@@ -25,8 +25,8 @@ FROM (
 
     SELECT
         s.id,
-        'Sample data - Asset return reminder',
-        'Sample data - Please confirm that your assigned equipment is in good condition.',
+        'Asset return reminder',
+        'Please confirm that your assigned equipment is in good condition.',
         'Asset',
         FALSE
     FROM staff s
@@ -36,8 +36,8 @@ FROM (
 
     SELECT
         s.id,
-        'Sample data - Staff directory update',
-        'Sample data - Your staff profile is available in the staff directory.',
+        'Staff directory update',
+        'Your staff profile is available in the staff directory.',
         'General',
         TRUE
     FROM staff s
@@ -47,8 +47,8 @@ FROM (
 
     SELECT
         NULL,
-        'Sample data - System notice',
-        'Sample data - The StaffHub system is available. Contact the administrator if you need assistance.',
+        'System notice',
+        'The StaffHub system is available. Contact the administrator if you need assistance.',
         'System',
         FALSE
 ) AS sample

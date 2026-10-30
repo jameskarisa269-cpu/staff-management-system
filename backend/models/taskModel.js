@@ -1,6 +1,18 @@
 
 const db = require("../config/database");
 
+async function createAssignmentNotification(connection, staffId, title) {
+  await connection.query(
+    `INSERT INTO notifications (staff_id, title, message, type)
+     VALUES (?, ?, ?, 'Task')`,
+    [
+      staffId,
+      "New task assigned",
+      `An administrator has assigned you the task: "${title}".`,
+    ]
+  );
+}
+
 const Task = {
   async getAll(staffId = null) {
     const filter = staffId === null ? "" : "WHERE t.assigned_to = ?";
@@ -68,26 +80,44 @@ const Task = {
       due_date
     } = data;
 
-    const [result] = await db.query(
-      `INSERT INTO tasks
-       (title, description, assigned_to, created_by,
-        priority, status, start_date, due_date, completed_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?,
-         CASE WHEN ? = 'Completed' THEN NOW() ELSE NULL END)`,
-      [
-        title,
-        description || null,
-        assigned_to || null,
-        createdBy,
-        priority || "Medium",
-        status || "Pending",
-        start_date || null,
-        due_date || null,
-        status || "Pending"
-      ]
-    );
+    const connection = await db.getConnection();
+    try {
+      await connection.beginTransaction();
+      const [result] = await connection.query(
+        `INSERT INTO tasks
+         (title, description, assigned_to, created_by,
+          priority, status, start_date, due_date, completed_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?,
+           CASE WHEN ? = 'Completed' THEN NOW() ELSE NULL END)`,
+        [
+          title,
+          description || null,
+          assigned_to || null,
+          createdBy,
+          priority || "Medium",
+          status || "Pending",
+          start_date || null,
+          due_date || null,
+          status || "Pending"
+        ]
+      );
 
-    return result.insertId;
+      if (assigned_to) {
+        await createAssignmentNotification(connection, assigned_to, title);
+      }
+
+      await connection.commit();
+      return result.insertId;
+    } catch (error) {
+      try {
+        await connection.rollback();
+      } catch (rollbackError) {
+        console.error("Failed to roll back task creation:", rollbackError);
+      }
+      throw error;
+    } finally {
+      connection.release();
+    }
   },
 
   async update(id, data) {
@@ -101,40 +131,67 @@ const Task = {
       due_date
     } = data;
 
-    const [result] = await db.query(
-      `UPDATE tasks
-       SET title = ?,
-           description = ?,
-           assigned_to = ?,
-           priority = ?,
-           status = ?,
-           start_date = ?,
-           due_date = ?,
-           completed_at = CASE
-             WHEN ? = 'Completed'
-               THEN COALESCE(completed_at, NOW())
-             ELSE NULL
-           END
-       WHERE id = ?`,
-      [
-        title,
-        description || null,
-        assigned_to || null,
-        priority,
-        status,
-        start_date || null,
-        due_date || null,
-        status,
-        id
-      ]
-    );
+    const connection = await db.getConnection();
+    try {
+      await connection.beginTransaction();
+      const [existingTasks] = await connection.query(
+        "SELECT assigned_to FROM tasks WHERE id = ? FOR UPDATE",
+        [id]
+      );
 
-    if (result.affectedRows) {
-      return true;
+      if (!existingTasks.length) {
+        await connection.rollback();
+        return { updated: false, notificationSent: false };
+      }
+
+      const currentAssignee = existingTasks[0].assigned_to;
+      const notificationSent = Boolean(
+        assigned_to && Number(assigned_to) !== Number(currentAssignee)
+      );
+      await connection.query(
+        `UPDATE tasks
+         SET title = ?,
+             description = ?,
+             assigned_to = ?,
+             priority = ?,
+             status = ?,
+             start_date = ?,
+             due_date = ?,
+             completed_at = CASE
+               WHEN ? = 'Completed'
+                 THEN COALESCE(completed_at, NOW())
+               ELSE NULL
+             END
+         WHERE id = ?`,
+        [
+          title,
+          description || null,
+          assigned_to || null,
+          priority,
+          status,
+          start_date || null,
+          due_date || null,
+          status,
+          id
+        ]
+      );
+
+      if (notificationSent) {
+        await createAssignmentNotification(connection, assigned_to, title);
+      }
+
+      await connection.commit();
+      return { updated: true, notificationSent };
+    } catch (error) {
+      try {
+        await connection.rollback();
+      } catch (rollbackError) {
+        console.error("Failed to roll back task update:", rollbackError);
+      }
+      throw error;
+    } finally {
+      connection.release();
     }
-
-    const [rows] = await db.query("SELECT id FROM tasks WHERE id = ?", [id]);
-    return rows.length > 0;
   },
 
   async updateStatus(id, staffId, status) {

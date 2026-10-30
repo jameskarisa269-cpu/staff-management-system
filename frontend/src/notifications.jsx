@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "./services/api";
+import Icon from "./components/Icon";
+import { cleanSeedPrefix } from "./utils/displayText";
 
 const API_URL = "http://localhost:5000/api/notifications";
 
@@ -22,7 +24,8 @@ function formatDate(value) {
   return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString();
 }
 
-export default function Notifications() {
+export default function Notifications({ user }) {
+  const isAdmin = user?.role === "admin";
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -57,7 +60,7 @@ export default function Notifications() {
   useEffect(() => {
     let active = true;
 
-    async function loadInitialNotifications() {
+    async function refreshNotifications() {
       try {
         const data = await readResponse(await apiFetch(API_URL));
         if (!Array.isArray(data.notifications)) {
@@ -73,9 +76,11 @@ export default function Notifications() {
       }
     }
 
-    loadInitialNotifications();
+    refreshNotifications();
+    const intervalId = window.setInterval(refreshNotifications, 15_000);
     return () => {
       active = false;
+      window.clearInterval(intervalId);
     };
   }, []);
 
@@ -153,13 +158,15 @@ export default function Notifications() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => setShowForm((current) => !current)}
-            className="rounded-lg bg-[#800000] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#650000]"
-          >
-            {showForm ? "Cancel" : "Create notification"}
-          </button>
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={() => setShowForm((current) => !current)}
+              className="rounded-lg bg-[#800000] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#650000]"
+            >
+              {showForm ? "Cancel" : "Create notification"}
+            </button>
+          )}
           <button
             type="button"
             onClick={() => loadNotifications()}
@@ -181,7 +188,7 @@ export default function Notifications() {
         </div>
       </div>
 
-      {showForm && (
+      {isAdmin && showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4">
           <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
@@ -192,7 +199,7 @@ export default function Notifications() {
                 className="rounded-lg px-3 py-2 text-slate-500 hover:bg-slate-100"
                 aria-label="Close notification form"
               >
-                ✕
+                <Icon name="close" />
               </button>
             </div>
 
@@ -295,6 +302,8 @@ export default function Notifications() {
               ]
                 .filter(Boolean)
                 .join(" ");
+              const title = cleanSeedPrefix(notification.title);
+              const message = cleanSeedPrefix(notification.message);
 
               return (
                 <li
@@ -306,7 +315,7 @@ export default function Notifications() {
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <h2 className="font-semibold text-slate-800">
-                        {notification.title}
+                        {title}
                       </h2>
                       <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
                         {notification.type}
@@ -318,10 +327,10 @@ export default function Notifications() {
                       )}
                     </div>
                     <p className="mt-2 whitespace-pre-wrap text-sm text-slate-600">
-                      {notification.message}
+                      {message}
                     </p>
                     <p className="mt-3 text-xs text-slate-400">
-                      {recipient || "All staff"} ·{" "}
+                      {isAdmin ? `${recipient || "All staff"} · ` : ""}
                       {formatDate(notification.created_at)}
                     </p>
                   </div>
@@ -342,14 +351,16 @@ export default function Notifications() {
                         Mark read
                       </button>
                     )}
-                    <button
-                      type="button"
-                      onClick={() => deleteNotification(notification.id)}
-                      disabled={busyId !== null}
-                      className="rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
-                    >
-                      Delete
-                    </button>
+                    {isAdmin && (
+                      <button
+                        type="button"
+                        onClick={() => deleteNotification(notification.id)}
+                        disabled={busyId !== null}
+                        className="rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
+                      >
+                        Delete
+                      </button>
+                    )}
                   </div>
                 </li>
               );

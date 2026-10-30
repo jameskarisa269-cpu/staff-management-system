@@ -28,6 +28,15 @@ function handleError(res, error, message) {
   });
 }
 
+exports.getActiveSession = async (req, res) => {
+  try {
+    const session = await Attendance.getActiveSession();
+    return res.status(200).json({ session });
+  } catch (error) {
+    return handleError(res, error, "Failed to retrieve the active attendance session.");
+  }
+};
+
 exports.createSession = async (req, res) => {
   const expiresAt = req.body?.expires_at;
   const expiryTime = typeof expiresAt === "string" ? Date.parse(expiresAt) : NaN;
@@ -67,7 +76,9 @@ exports.closeSession = async (req, res) => {
 };
 
 exports.checkIn = async (req, res) => {
-  const staffId = parseId(req.body?.staff_id);
+  const staffId = req.user.role === "staff"
+    ? parseId(req.user.id)
+    : parseId(req.body?.staff_id);
   const qrToken = typeof req.body?.qr_token === "string"
     ? req.body.qr_token.trim()
     : "";
@@ -86,10 +97,70 @@ exports.checkIn = async (req, res) => {
   }
 };
 
+exports.createRecord = async (req, res) => {
+  const staffId = parseId(req.body?.staff_id);
+  const { attendance_date: attendanceDate, status, check_in_time: checkInTime, remarks } =
+    req.body || {};
+  const allowedStatuses = ["Present", "Late", "Absent"];
+
+  if (!staffId) {
+    return res.status(400).json({ message: "A valid staff_id is required." });
+  }
+
+  if (!isValidDate(attendanceDate)) {
+    return res.status(400).json({
+      message: "attendance_date must be a valid date in YYYY-MM-DD format.",
+    });
+  }
+
+  if (!allowedStatuses.includes(status)) {
+    return res.status(400).json({
+      message: "status must be Present, Late, or Absent.",
+    });
+  }
+
+  if (
+    checkInTime !== undefined &&
+    checkInTime !== null &&
+    (typeof checkInTime !== "string" || !/^([01]\d|2[0-3]):[0-5]\d$/.test(checkInTime))
+  ) {
+    return res.status(400).json({
+      message: "check_in_time must be a valid time in HH:mm format.",
+    });
+  }
+
+  if (remarks !== undefined && remarks !== null && typeof remarks !== "string") {
+    return res.status(400).json({ message: "remarks must be a string or null." });
+  }
+
+  try {
+    const record = await Attendance.createRecord({
+      staffId,
+      attendanceDate,
+      status,
+      checkInTime: status === "Absent" ? null : checkInTime || null,
+      remarks: typeof remarks === "string" ? remarks.trim() || null : null,
+    });
+    return res.status(201).json(record);
+  } catch (error) {
+    return handleError(res, error, "Failed to create attendance record.");
+  }
+};
+
 exports.getAll = async (req, res) => {
   const filters = {};
 
-  if (req.query.staff_id !== undefined) {
+  if (req.user.role === "staff") {
+    if (
+      req.query.staff_id !== undefined &&
+      String(req.query.staff_id) !== String(req.user.id)
+    ) {
+      return res.status(403).json({
+        message: "You can only view your own attendance records.",
+      });
+    }
+    filters.staff_id = req.user.id;
+  } else if (req.query.staff_id !== undefined) {
     filters.staff_id = parseId(req.query.staff_id);
     if (!filters.staff_id) {
       return res.status(400).json({ message: "A valid staff_id is required." });
@@ -136,13 +207,16 @@ exports.getById = async (req, res) => {
 exports.update = async (req, res) => {
   const id = parseId(req.params.id);
   const { status, remarks } = req.body || {};
+  const allowedStatuses = ["Present", "Late", "Absent"];
 
   if (!id) {
     return res.status(400).json({ message: "A valid attendance ID is required." });
   }
 
-  if (typeof status !== "string" || !status.trim()) {
-    return res.status(400).json({ message: "A non-empty status is required." });
+  if (typeof status !== "string" || !allowedStatuses.includes(status.trim())) {
+    return res.status(400).json({
+      message: "status must be Present, Late, or Absent.",
+    });
   }
 
   if (remarks !== undefined && remarks !== null && typeof remarks !== "string") {

@@ -77,13 +77,13 @@ app.use((req, res, next) => {
 });
 
 app.use("/api/staff", requireRole("admin"), staffRoutes);
-app.use("/api/attendance", requireRole("admin"), attendanceRoutes);
+app.use("/api/attendance", attendanceRoutes);
 app.use("/api/departments", requireRole("admin"), departmentRoutes);
 app.use("/api/tasks", taskRoutes);
 app.use("/api/assets", requireRole("admin"), assetRoutes);
 app.use("/api/reports", requireRole("admin"), reportRoutes);
 app.use("/api/submissions", submissionRoutes);
-app.use("/api/notifications", requireRole("admin"), notificationRoutes);
+app.use("/api/notifications", notificationRoutes);
 app.use("/api/audit-logs", requireRole("admin"), auditLogRoutes);
 
 const PORT = process.env.PORT || 5000;

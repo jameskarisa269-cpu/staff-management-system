@@ -41,6 +41,7 @@ async function fetchStaffReportData() {
 }
 
 export default function StaffReports({ user }) {
+  const [activeTab, setActiveTab] = useState("send-report");
   const [reportForm, setReportForm] = useState({ task_id: "", title: "", content: "" });
   const [briefForm, setBriefForm] = useState(emptyBrief);
   const [tasks, setTasks] = useState([]);
@@ -147,7 +148,43 @@ export default function StaffReports({ user }) {
       {message && <p role="status" className="rounded-lg border border-green-200 bg-green-50 p-4 text-green-800">{message}</p>}
       {error && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-700">{error}</p>}
 
-      <div className="grid gap-6 xl:grid-cols-2">
+      <div
+        role="tablist"
+        aria-label="Reports and weekly briefs"
+        className="flex gap-2 overflow-x-auto rounded-xl border border-slate-200 bg-white p-2 shadow-sm"
+      >
+        {[
+          ["send-report", "Send a report"],
+          ["weekly-brief", "Weekly brief"],
+          ["staff-briefs", "Weekly progress"],
+          ["sent-reports", "My sent reports"],
+        ].map(([tab, label]) => (
+          <button
+            key={tab}
+            id={`reports-tab-${tab}`}
+            type="button"
+            role="tab"
+            aria-selected={activeTab === tab}
+            aria-controls="reports-tab-panel"
+            onClick={() => setActiveTab(tab)}
+            className={`shrink-0 rounded-lg px-4 py-2.5 text-sm font-semibold transition ${
+              activeTab === tab
+                ? "bg-[#800000] text-white"
+                : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <section
+        id="reports-tab-panel"
+        role="tabpanel"
+        aria-labelledby={`reports-tab-${activeTab}`}
+        className="min-w-0"
+      >
+      {activeTab === "send-report" && (
         <form onSubmit={submitReport} className="space-y-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
           <div>
             <h2 className="text-lg font-bold text-slate-800">Send a report to admin</h2>
@@ -189,7 +226,9 @@ export default function StaffReports({ user }) {
             {savingReport ? "Sending..." : "Send to admin"}
           </button>
         </form>
+      )}
 
+      {activeTab === "weekly-brief" && (
         <form onSubmit={submitBrief} className="space-y-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
           <div>
             <h2 className="text-lg font-bold text-slate-800">Weekly brief</h2>
@@ -228,8 +267,9 @@ export default function StaffReports({ user }) {
             {savingBrief ? "Submitting..." : "Share weekly brief"}
           </button>
         </form>
-      </div>
+      )}
 
+      {activeTab === "staff-briefs" && (
       <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="mb-5 flex items-center justify-between gap-3">
           <div>
@@ -268,7 +308,9 @@ export default function StaffReports({ user }) {
           </div>
         )}
       </section>
+      )}
 
+      {activeTab === "sent-reports" && (
       <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-xl font-bold text-slate-800">My sent reports</h2>
         {loading ? <p className="py-8 text-center text-slate-500">Loading reports...</p> : (
@@ -286,6 +328,8 @@ export default function StaffReports({ user }) {
             {!reports.length && <p className="py-8 text-center text-slate-500">You have not sent any reports yet.</p>}
           </div>
         )}
+      </section>
+      )}
       </section>
     </div>
   );

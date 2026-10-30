@@ -25,7 +25,11 @@ const notificationController = {
       }
 
       const notifications = await Notification.getAll(
-        staff_id ? Number(staff_id) : null
+        req.user.role === "staff"
+          ? req.user.id
+          : staff_id
+            ? Number(staff_id)
+            : null
       );
 
       res.status(200).json({
@@ -135,7 +139,8 @@ const notificationController = {
         return res.status(400).json({ message: "Invalid notification ID." });
       }
 
-      const affectedRows = await Notification.markAsRead(id);
+      const staffId = req.user.role === "staff" ? req.user.id : null;
+      const affectedRows = await Notification.markAsRead(id, staffId);
 
       if (!affectedRows) {
         const notification = await Notification.getById(id);
@@ -143,6 +148,16 @@ const notificationController = {
         if (!notification) {
           return res.status(404).json({
             message: "Notification not found.",
+          });
+        }
+
+        if (
+          staffId &&
+          notification.staff_id !== null &&
+          Number(notification.staff_id) !== staffId
+        ) {
+          return res.status(403).json({
+            message: "You can only update your own notifications.",
           });
         }
       }
@@ -162,17 +177,20 @@ const notificationController = {
   // MARK all notifications as read
   async markAllAsRead(req, res) {
     try {
-      const { staff_id } = req.body;
+      const { staff_id } = req.body || {};
 
-      if (staff_id && !validId(staff_id)) {
+      if (req.user.role === "admin" && staff_id && !validId(staff_id)) {
         return res.status(400).json({
           message: "staff_id must be a positive integer.",
         });
       }
 
-      const updated = await Notification.markAllAsRead(
-        staff_id ? Number(staff_id) : null
-      );
+      const targetStaffId = req.user.role === "staff"
+        ? req.user.id
+        : staff_id
+          ? Number(staff_id)
+          : null;
+      const updated = await Notification.markAllAsRead(targetStaffId);
 
       res.status(200).json({
         success: true,

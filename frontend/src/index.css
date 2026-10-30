@@ -1,1 +1,151 @@
 @import "tailwindcss";
+
+@theme {
+  --text-xs: 0.875rem;
+  --text-sm: 1rem;
+}
+
+@layer base {
+  html {
+    min-width: 320px;
+    width: 100%;
+    overflow-x: clip;
+    text-size-adjust: 100%;
+    -webkit-text-size-adjust: 100%;
+    scroll-padding-top: 1rem;
+  }
+
+  body {
+    min-width: 320px;
+    width: 100%;
+    overflow-x: clip;
+    margin: 0;
+  }
+
+  #root {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: clip;
+  }
+
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    touch-action: manipulation;
+  }
+
+  button,
+  a,
+  input,
+  select,
+  textarea,
+  [tabindex]:not([tabindex="-1"]) {
+    scroll-margin: 1rem;
+  }
+
+  :focus-visible {
+    outline: 3px solid #2563eb;
+    outline-offset: 3px;
+  }
+
+  img,
+  video,
+  canvas {
+    max-width: 100%;
+  }
+}
+
+.skip-link {
+  position: fixed;
+  z-index: 100;
+  top: 0.75rem;
+  left: 0.75rem;
+  transform: translateY(-180%);
+  border-radius: 0.5rem;
+  background: #fff;
+  padding: 0.75rem 1rem;
+  color: #800000;
+  font-weight: 700;
+  box-shadow: 0 4px 16px rgb(15 23 42 / 20%);
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+.mobile-nav-layer {
+  position: fixed;
+  z-index: 60;
+  inset: 0;
+}
+
+.mobile-nav-backdrop {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  border: 0;
+  background: rgb(15 23 42 / 60%);
+}
+
+.mobile-nav-drawer {
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  width: min(20rem, 85vw);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: #5c0011;
+  padding: max(1.5rem, env(safe-area-inset-top))
+    max(1rem, env(safe-area-inset-right))
+    max(1.5rem, env(safe-area-inset-bottom))
+    max(1rem, env(safe-area-inset-left));
+  color: #fff;
+  box-shadow: 0 0 32px rgb(15 23 42 / 25%);
+}
+
+.app-header {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  padding-top: max(0.75rem, env(safe-area-inset-top));
+}
+
+.overflow-x-auto {
+  max-width: 100%;
+  overscroll-behavior-inline: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 640px) {
+  input,
+  select,
+  textarea {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .overflow-x-auto table {
+    white-space: normal;
+  }
+
+  #main-content,
+  #main-content > section {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

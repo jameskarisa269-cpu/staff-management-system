@@ -140,7 +140,9 @@ const taskController = {
       const id = await Task.create(task, req.user.id);
 
       return res.status(201).json({
-        message: "Task created successfully",
+        message: task.assigned_to
+          ? "Task created successfully. A notification was sent to the assigned staff member."
+          : "Task created successfully.",
         id
       });
     } catch (error) {
@@ -196,14 +198,16 @@ const taskController = {
         return res.status(400).json({ message: error });
       }
 
-      const updated = await Task.update(Number(req.params.id), task);
+      const result = await Task.update(Number(req.params.id), task);
 
-      if (!updated) {
+      if (!result.updated) {
         return res.status(404).json({ message: "Task not found" });
       }
 
       return res.status(200).json({
-        message: "Task updated successfully"
+        message: result.notificationSent
+          ? "Task updated successfully. A notification was sent to the newly assigned staff member."
+          : "Task updated successfully."
       });
     } catch (error) {
       console.error("Update task error:", error);

@@ -247,8 +247,6 @@ export default function AuditLogs() {
                     const actor = [log.first_name, log.last_name]
                       .filter(Boolean)
                       .join(" ");
-                    const isSample = log.ip_address === "127.0.0.1";
-
                     return (
                       <tr key={log.id} className="align-top hover:bg-slate-50">
                         <td className="whitespace-nowrap px-5 py-4 text-slate-600">
@@ -281,11 +279,6 @@ export default function AuditLogs() {
                         </td>
                         <td className="max-w-lg px-5 py-4 text-slate-600">
                           {log.description || "—"}
-                          {isSample && (
-                            <span className="mt-1 block text-xs font-medium text-amber-700">
-                              Sample entry
-                            </span>
-                          )}
                         </td>
                       </tr>
                     );

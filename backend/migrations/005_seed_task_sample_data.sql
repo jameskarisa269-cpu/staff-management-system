@@ -24,49 +24,49 @@ WHERE NOT EXISTS (
 
 INSERT INTO tasks
     (title, description, assigned_to, priority, status, start_date, due_date, completed_at)
-SELECT 'Review monthly staff records', 'Sample data - replace with actual task details.',
+SELECT 'Review monthly staff records', 'Review staff records for completeness and submit any corrections.',
        id, 'High', 'Pending', '2026-10-22', '2026-10-28', NULL
 FROM staff WHERE employee_id = 'EMP001'
   AND NOT EXISTS (SELECT 1 FROM tasks WHERE title = 'Review monthly staff records');
 
 INSERT INTO tasks
     (title, description, assigned_to, priority, status, start_date, due_date, completed_at)
-SELECT 'Prepare onboarding checklist', 'Sample data - replace with actual task details.',
+SELECT 'Prepare onboarding checklist', 'Prepare onboarding materials and confirm required documents for new starters.',
        id, 'Medium', 'Pending', '2026-10-22', '2026-10-30', NULL
 FROM staff WHERE employee_id = 'EMP-101'
   AND NOT EXISTS (SELECT 1 FROM tasks WHERE title = 'Prepare onboarding checklist');
 
 INSERT INTO tasks
     (title, description, assigned_to, priority, status, start_date, due_date, completed_at)
-SELECT 'Reconcile department expenses', 'Sample data - replace with actual task details.',
+SELECT 'Reconcile department expenses', 'Review department expenses and resolve outstanding entries.',
        id, 'Urgent', 'In Progress', '2026-10-20', '2026-10-25', NULL
 FROM staff WHERE employee_id = 'EMP-102'
   AND NOT EXISTS (SELECT 1 FROM tasks WHERE title = 'Reconcile department expenses');
 
 INSERT INTO tasks
     (title, description, assigned_to, priority, status, start_date, due_date, completed_at)
-SELECT 'Update staff contact directory', 'Sample data - replace with actual task details.',
+SELECT 'Update staff contact directory', 'Verify staff contact details and submit any corrections.',
        id, 'Medium', 'In Progress', '2026-10-21', '2026-10-26', NULL
 FROM staff WHERE employee_id = 'EMP-103'
   AND NOT EXISTS (SELECT 1 FROM tasks WHERE title = 'Update staff contact directory');
 
 INSERT INTO tasks
     (title, description, assigned_to, priority, status, start_date, due_date, completed_at)
-SELECT 'Organize team orientation', 'Sample data - replace with actual task details.',
+SELECT 'Organize team orientation', 'Coordinate the team orientation schedule and materials.',
        id, 'High', 'Completed', '2026-10-15', '2026-10-20', NOW()
 FROM staff WHERE employee_id = 'EMP-101'
   AND NOT EXISTS (SELECT 1 FROM tasks WHERE title = 'Organize team orientation');
 
 INSERT INTO tasks
     (title, description, assigned_to, priority, status, start_date, due_date, completed_at)
-SELECT 'Audit office equipment register', 'Sample data - replace with actual task details.',
+SELECT 'Audit office equipment register', 'Verify equipment assignments and update the register.',
        id, 'Low', 'Completed', '2026-10-16', '2026-10-21', NOW()
 FROM staff WHERE employee_id = 'EMP-102'
   AND NOT EXISTS (SELECT 1 FROM tasks WHERE title = 'Audit office equipment register');
 
 INSERT INTO tasks
     (title, description, assigned_to, priority, status, start_date, due_date, completed_at)
-SELECT 'Schedule quarterly planning meeting', 'Sample data - replace with actual task details.',
+SELECT 'Schedule quarterly planning meeting', 'Coordinate availability and circulate the quarterly planning agenda.',
        id, 'Low', 'Cancelled', '2026-10-18', '2026-10-24', NULL
 FROM staff WHERE employee_id = 'EMP-103'
   AND NOT EXISTS (SELECT 1 FROM tasks WHERE title = 'Schedule quarterly planning meeting');

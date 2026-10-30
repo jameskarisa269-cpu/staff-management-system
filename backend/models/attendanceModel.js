@@ -3,6 +3,18 @@ const db = require("../config/database");
 const crypto = require("crypto");
 
 const Attendance = {
+  async getActiveSession() {
+    const [rows] = await db.query(
+      `SELECT id, qr_token, expires_at
+       FROM attendance_sessions
+       WHERE status = 'Active' AND expires_at > NOW()
+       ORDER BY created_at DESC
+       LIMIT 1`
+    );
+
+    return rows[0] || null;
+  },
+
   // Create a secure QR attendance session
   async createSession(expiresAt) {
     const qrToken = crypto.randomBytes(32).toString("hex");
@@ -89,6 +101,39 @@ const Attendance = {
     };
   },
 
+  async createRecord({ staffId, attendanceDate, status, checkInTime, remarks }) {
+    const [staff] = await db.query(
+      "SELECT id FROM staff WHERE id = ?",
+      [staffId]
+    );
+
+    if (staff.length === 0) {
+      const error = new Error("Staff member not found.");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const checkInDateTime = checkInTime
+      ? `${attendanceDate} ${checkInTime}:00`
+      : null;
+    const [result] = await db.query(
+      `INSERT INTO attendance_records
+       (staff_id, session_id, attendance_date, check_in_time, status, remarks)
+       VALUES (?, NULL, ?, ?, ?, ?)`,
+      [staffId, attendanceDate, checkInDateTime, status, remarks]
+    );
+
+    return {
+      id: result.insertId,
+      staff_id: staffId,
+      session_id: null,
+      attendance_date: attendanceDate,
+      check_in_time: checkInDateTime,
+      status,
+      remarks,
+    };
+  },
+
   // Get all attendance records, with optional filters
   async getAll(filters = {}) {
     let sql = `
@@ -142,9 +187,11 @@ const Attendance = {
 
     const [result] = await db.query(
       `UPDATE attendance_records
-       SET status = ?, remarks = ?
+       SET status = ?,
+           remarks = ?,
+           check_in_time = CASE WHEN ? = 'Absent' THEN NULL ELSE check_in_time END
        WHERE id = ?`,
-      [status, remarks || null, id]
+      [status, remarks || null, status, id]
     );
 
     return result.affectedRows;
