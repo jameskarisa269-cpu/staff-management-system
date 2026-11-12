@@ -143,6 +143,13 @@ exports.createRecord = async (req, res) => {
     });
     return res.status(201).json(record);
   } catch (error) {
+    if (error.code === "ER_BAD_NULL_ERROR") {
+      console.error(error);
+      return res.status(500).json({
+        message: "Manual attendance requires database migration 015_allow_manual_attendance_records.sql.",
+      });
+    }
+
     return handleError(res, error, "Failed to create attendance record.");
   }
 };

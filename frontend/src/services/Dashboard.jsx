@@ -8,6 +8,8 @@ import Reports from "../reports";
 import Notifications from "../notifications";
 import StaffAttendance from "../StaffAttendance";
 import AuditLogs from "../auditlog";
+import AccountRequests from "../AccountRequests";
+import TeamRoles from "../TeamRoles";
 import Icon from "../components/Icon";
 import { apiFetch } from "./api";
 
@@ -34,6 +36,7 @@ async function fetchDashboardSummary() {
 const modules = [
   { name: "Dashboard", icon: "dashboard" },
   { name: "Staff", icon: "users" },
+  { name: "Account Requests", icon: "users" },
   { name: "Departments & Roles", icon: "building" },
   { name: "Attendance", icon: "calendar" },
   { name: "Tasks", icon: "checklist" },
@@ -148,7 +151,7 @@ function DashboardOverview({ onOpenModule }) {
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">
-            Welcome to StaffHub
+            Welcome to Elimu Staff Management System
           </h1>
           <p className="mt-2 text-slate-500">
             Organisation overview from your current staff, attendance, tasks,
@@ -248,7 +251,12 @@ export default function Dashboard({ user, onLogout }) {
     { name: "Reports", icon: "chart" },
     { name: "Notifications", icon: "bell" },
   ];
-  const visibleModules = user.role === "admin" ? modules : staffModules;
+  const visibleModules =
+    user.role === "admin"
+      ? modules
+      : user.is_senior
+        ? [...staffModules, { name: "Team Roles", icon: "users" }]
+        : staffModules;
   const [activeModule, setActiveModule] = useState(
     user.role === "admin" ? "Dashboard" : "Tasks",
   );
@@ -306,8 +314,11 @@ export default function Dashboard({ user, onLogout }) {
       </a>
       {/* MAIN SIDEBAR */}
       <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col overflow-y-auto bg-[#5c0011] px-4 py-6 text-white md:flex">
-        <h1 className="mb-10 px-2 text-2xl font-bold">
-          Staff<span className="text-[#e8a0b0]">Hub</span>
+        <h1 className="mb-10 px-2 font-bold">
+          <span className="block text-2xl">Elimu</span>
+          <span className="mt-1 block text-xs font-medium leading-5 text-slate-300">
+            Staff Management System
+          </span>
         </h1>
 
         <p className="mb-3 px-3 text-xs font-semibold tracking-widest text-slate-400">
@@ -362,8 +373,11 @@ export default function Dashboard({ user, onLogout }) {
             aria-labelledby="mobile-navigation-title"
           >
             <div className="mb-8 flex items-center justify-between">
-              <h2 id="mobile-navigation-title" className="px-2 text-2xl font-bold">
-                Staff<span className="text-[#e8a0b0]">Hub</span>
+              <h2 id="mobile-navigation-title" className="px-2 font-bold">
+                <span className="block text-2xl">Elimu</span>
+                <span className="mt-1 block text-xs font-medium leading-5 text-slate-300">
+                  Staff Management System
+                </span>
               </h2>
               <button
                 ref={mobileCloseButtonRef}
@@ -426,7 +440,7 @@ export default function Dashboard({ user, onLogout }) {
             </button>
             <div className="min-w-0">
             <p className="hidden text-xs font-semibold tracking-wider text-[#800000] sm:block">
-              STAFF MANAGEMENT SYSTEM
+              ELIMU STAFF MANAGEMENT SYSTEM
             </p>
             <h2 className="truncate text-base font-bold text-slate-800 sm:mt-1 sm:text-2xl">
               {activeModule}
@@ -488,6 +502,10 @@ export default function Dashboard({ user, onLogout }) {
         >
           {user.role === "admin" && activeModule === "Staff" ? (
             <Staff />
+          ) : user.role === "admin" && activeModule === "Account Requests" ? (
+            <AccountRequests />
+          ) : user.role === "staff" && user.is_senior && activeModule === "Team Roles" ? (
+            <TeamRoles />
           ) : user.role === "admin" && activeModule === "Departments & Roles" ? (
             <Departmental />
           ) : user.role === "admin" && activeModule === "Attendance" ? (
@@ -538,7 +556,7 @@ export default function Dashboard({ user, onLogout }) {
         </section>
 
         <footer className="border-t border-slate-200 bg-white px-6 py-4 text-center text-xs text-slate-500">
-          Staff Management System © {new Date().getFullYear()}
+          Elimu Staff Management System © {new Date().getFullYear()}
         </footer>
       </main>
     </div>

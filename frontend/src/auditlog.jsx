@@ -124,7 +124,7 @@ export default function AuditLogs() {
         <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <div>
             <p className="text-slate-600">
-              Review successful changes recorded by the StaffHub API.
+              Review successful changes recorded by the Elimu Staff Management System.
             </p>
             <p className="mt-1 text-xs text-slate-500">
               System/API is shown as the actor because user sign-in is not configured.
@@ -226,7 +226,7 @@ export default function AuditLogs() {
             <div className="p-10 text-center text-slate-500">
               {logs.length
                 ? "No audit entries match the selected filters."
-                : "No audit entries have been recorded yet. Successful changes made through StaffHub will appear here."}
+                : "No audit entries have been recorded yet. Successful changes made through Elimu Staff Management System will appear here."}
             </div>
           ) : (
             <div className="overflow-x-auto">

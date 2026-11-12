@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS attendance_sessions (
 CREATE TABLE IF NOT EXISTS attendance_records (
     id INT NOT NULL AUTO_INCREMENT,
     staff_id INT NOT NULL,
-    session_id INT NOT NULL,
+    session_id INT DEFAULT NULL,
     attendance_date DATE NOT NULL,
     check_in_time DATETIME DEFAULT NULL,
     status ENUM('Present', 'Late', 'Absent') NOT NULL DEFAULT 'Present',

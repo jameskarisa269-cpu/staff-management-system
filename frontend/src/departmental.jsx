@@ -31,6 +31,14 @@ const emptyForm = {
   status: "Active",
 };
 
+const emptyMemberForm = {
+  first_name: "",
+  last_name: "",
+  email: "",
+  position: "",
+  password: "",
+};
+
 function getManagerName(department, staff) {
   if (department.manager_name) {
     return department.manager_name;
@@ -40,18 +48,50 @@ function getManagerName(department, staff) {
     (member) => Number(member.id) === Number(department.manager_id)
   );
 
-  return manager
-    ? `${manager.first_name} ${manager.last_name}`.trim()
-    : "Not assigned";
+  if (manager) {
+    return `${manager.first_name} ${manager.last_name}`.trim();
+  }
+
+  const describedManager = cleanSeedPrefix(department.description)
+    ?.match(/^managed by\s+(.+)$/i)?.[1]
+    ?.trim();
+
+  return describedManager || "Not assigned";
+}
+
+function getManagerId(department, staff) {
+  if (department.manager_id) {
+    return department.manager_id;
+  }
+
+  const describedManager = cleanSeedPrefix(department.description)
+    ?.match(/^managed by\s+(.+)$/i)?.[1]
+    ?.trim()
+    .toLowerCase();
+
+  if (!describedManager) {
+    return "";
+  }
+
+  const manager = staff.find(
+    (member) =>
+      `${member.first_name} ${member.last_name}`.trim().toLowerCase() ===
+      describedManager
+  );
+
+  return manager?.id ?? "";
 }
 
 export default function Departmental() {
   const [departments, setDepartments] = useState([]);
   const [staff, setStaff] = useState([]);
   const [form, setForm] = useState(emptyForm);
+  const [memberForm, setMemberForm] = useState(emptyMemberForm);
   const [editingId, setEditingId] = useState(null);
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
+  const [addNewMember, setAddNewMember] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -105,7 +145,9 @@ export default function Departmental() {
 
   function openAddForm() {
     setForm(emptyForm);
+    setMemberForm(emptyMemberForm);
     setEditingId(null);
+    setAddNewMember(false);
     setMessage("");
     setError("");
     setShowForm(true);
@@ -115,11 +157,13 @@ export default function Departmental() {
     setForm({
       department_name: department.department_name || "",
       description: cleanSeedPrefix(department.description) || "",
-      manager_id: department.manager_id ?? "",
+      manager_id: getManagerId(department, staff),
       status: department.status || "Active",
     });
 
+    setMemberForm(emptyMemberForm);
     setEditingId(department.id);
+    setAddNewMember(false);
     setMessage("");
     setError("");
     setShowForm(true);
@@ -129,44 +173,133 @@ export default function Departmental() {
     event.preventDefault();
     setError("");
     setMessage("");
+    setSaving(true);
 
+    const wasEditing = Boolean(editingId);
     const payload = {
       ...form,
-      manager_id: form.manager_id ? Number(form.manager_id) : null,
+      manager_id: addNewMember && !editingId
+        ? null
+        : form.manager_id
+          ? Number(form.manager_id)
+          : null,
     };
 
-    const url = editingId
-      ? `${API_URL}/${editingId}`
-      : API_URL;
+    let savedDepartmentId = editingId;
+    let createdMemberId = null;
 
     try {
-      const response = await apiFetch(url, {
-        method: editingId ? "PUT" : "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
+      const departmentResponse = await apiFetch(
+        editingId ? `${API_URL}/${editingId}` : API_URL,
+        {
+          method: editingId ? "PUT" : "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+      const departmentData = await readApiResponse(departmentResponse);
 
-      const data = await readApiResponse(response);
+      if (!departmentResponse.ok) {
+        throw new Error(departmentData.message || "Failed to save department");
+      }
 
-      if (!response.ok) {
-        throw new Error(data.message || "Failed to save department");
+      if (!savedDepartmentId) {
+        savedDepartmentId = Number(departmentData.id);
+        if (!Number.isSafeInteger(savedDepartmentId) || savedDepartmentId < 1) {
+          throw new Error("The department was saved, but its ID was not returned.");
+        }
+      }
+
+      if (addNewMember) {
+        const memberResponse = await apiFetch(STAFF_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            ...memberForm,
+            department_id: savedDepartmentId,
+            employment_status: "Active",
+          }),
+        });
+        const memberData = await readApiResponse(memberResponse);
+
+        if (!memberResponse.ok) {
+          setEditingId(savedDepartmentId);
+          await loadDepartments();
+          throw new Error(
+            `Department saved, but the new staff member could not be added: ${
+              memberData.message || "Request failed."
+            }`
+          );
+        }
+
+        createdMemberId = Number(memberData.id);
+        if (!Number.isSafeInteger(createdMemberId) || createdMemberId < 1) {
+          setEditingId(savedDepartmentId);
+          await loadDepartments();
+          throw new Error(
+            "Department and staff member were saved, but the staff ID was not returned."
+          );
+        }
+
+        const assignmentResponse = await apiFetch(
+          `${API_URL}/${savedDepartmentId}`,
+          {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              ...payload,
+              manager_id: createdMemberId,
+            }),
+          }
+        );
+        const assignmentData = await readApiResponse(assignmentResponse);
+
+        if (!assignmentResponse.ok) {
+          setEditingId(savedDepartmentId);
+          setForm((previous) => ({
+            ...previous,
+            manager_id: String(createdMemberId),
+          }));
+          setMemberForm(emptyMemberForm);
+          setAddNewMember(false);
+          await Promise.all([loadDepartments(), loadStaff()]);
+          throw new Error(
+            `Department and staff member were saved, but manager assignment failed: ${
+              assignmentData.message || "Request failed."
+            } Select the new staff member and save again.`
+          );
+        }
       }
 
       setMessage(
-        editingId
+        wasEditing
           ? "Department updated successfully."
           : "Department created successfully."
       );
 
       setShowForm(false);
       setForm(emptyForm);
+      setMemberForm(emptyMemberForm);
       setEditingId(null);
+      setAddNewMember(false);
 
-      await loadDepartments();
+      await Promise.all([loadDepartments(), loadStaff()]);
     } catch (err) {
+      if (savedDepartmentId && !editingId) {
+        setEditingId(savedDepartmentId);
+      }
       setError(err.message || "Failed to save department.");
+      if (createdMemberId) {
+        await Promise.all([loadDepartments(), loadStaff()]);
+      }
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -208,9 +341,7 @@ export default function Departmental() {
       (cleanSeedPrefix(department.description) || "")
         .toLowerCase()
         .includes(searchText) ||
-      (department.manager_name || "")
-        .toLowerCase()
-        .includes(searchText) ||
+      getManagerName(department, staff).toLowerCase().includes(searchText) ||
       (department.status || "")
         .toLowerCase()
         .includes(searchText)
@@ -327,20 +458,124 @@ export default function Departmental() {
                     <label className="mb-2 block text-sm font-semibold text-slate-700">
                       Department Manager
                     </label>
-                    <select
-                      name="manager_id"
-                      value={form.manager_id}
-                      onChange={handleChange}
-                      className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 outline-none focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/15"
-                    >
-                      <option value="">No manager assigned</option>
-                      {staff.map((member) => (
-                        <option key={member.id} value={member.id}>
-                          {member.first_name} {member.last_name} (
-                          {member.employee_id})
-                        </option>
-                      ))}
-                    </select>
+                    {!addNewMember ? (
+                      <>
+                        <select
+                          name="manager_id"
+                          value={form.manager_id}
+                          onChange={handleChange}
+                          className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 outline-none focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/15"
+                        >
+                          <option value="">No manager assigned</option>
+                          {staff.map((member) => (
+                            <option key={member.id} value={member.id}>
+                              {member.first_name} {member.last_name} (
+                              {member.employee_id})
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMemberForm(emptyMemberForm);
+                            setAddNewMember(true);
+                          }}
+                          className="mt-2 text-sm font-semibold text-[#800000] hover:underline"
+                        >
+                          + Add a new staff member
+                        </button>
+                      </>
+                    ) : (
+                      <div className="rounded-lg border border-slate-200 p-4">
+                        <div className="mb-3 flex items-center justify-between gap-3">
+                          <p className="text-sm font-semibold text-slate-800">
+                            New staff member
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => setAddNewMember(false)}
+                            className="text-sm font-semibold text-[#800000] hover:underline"
+                          >
+                            Choose existing staff
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                          <input
+                            aria-label="New staff first name"
+                            value={memberForm.first_name}
+                            onChange={(event) =>
+                              setMemberForm({
+                                ...memberForm,
+                                first_name: event.target.value,
+                              })
+                            }
+                            placeholder="First name *"
+                            required
+                            className="w-full rounded-lg border border-slate-300 px-3 py-2.5 outline-none focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/15"
+                          />
+                          <input
+                            aria-label="New staff last name"
+                            value={memberForm.last_name}
+                            onChange={(event) =>
+                              setMemberForm({
+                                ...memberForm,
+                                last_name: event.target.value,
+                              })
+                            }
+                            placeholder="Last name *"
+                            required
+                            className="w-full rounded-lg border border-slate-300 px-3 py-2.5 outline-none focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/15"
+                          />
+                          <input
+                            aria-label="New staff email"
+                            type="email"
+                            value={memberForm.email}
+                            onChange={(event) =>
+                              setMemberForm({
+                                ...memberForm,
+                                email: event.target.value,
+                              })
+                            }
+                            placeholder="Email *"
+                            required
+                            className="w-full rounded-lg border border-slate-300 px-3 py-2.5 outline-none focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/15"
+                          />
+                          <input
+                            aria-label="New staff position"
+                            value={memberForm.position}
+                            onChange={(event) =>
+                              setMemberForm({
+                                ...memberForm,
+                                position: event.target.value,
+                              })
+                            }
+                            placeholder="Position"
+                            className="w-full rounded-lg border border-slate-300 px-3 py-2.5 outline-none focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/15"
+                          />
+                          <input
+                            aria-label="New staff initial password"
+                            type="password"
+                            value={memberForm.password}
+                            onChange={(event) =>
+                              setMemberForm({
+                                ...memberForm,
+                                password: event.target.value,
+                              })
+                            }
+                            placeholder="Initial password * (8+ characters)"
+                            minLength={8}
+                            maxLength={128}
+                            autoComplete="new-password"
+                            required
+                            className="w-full rounded-lg border border-slate-300 px-3 py-2.5 outline-none focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/15 sm:col-span-2"
+                          />
+                        </div>
+                        <p className="mt-3 text-xs text-slate-500">
+                          This person will be added to the staff directory and
+                          assigned as this department's manager.
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   <div>
@@ -376,9 +611,14 @@ export default function Departmental() {
                 <div className="mt-6 flex flex-wrap gap-3">
                   <button
                     type="submit"
-                    className="rounded-lg bg-[#800000] px-6 py-3 font-semibold text-white hover:bg-[#650000]"
+                    disabled={saving}
+                    className="rounded-lg bg-[#800000] px-6 py-3 font-semibold text-white hover:bg-[#650000] disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    {editingId ? "Update Department" : "Save Department"}
+                    {saving
+                      ? "Saving..."
+                      : editingId
+                        ? "Update Department"
+                        : "Save Department"}
                   </button>
 
                   <button

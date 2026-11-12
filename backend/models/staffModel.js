@@ -1,4 +1,5 @@
 const db = require("../config/database");
+const { insertStaffWithGeneratedId } = require("../utils/employeeId");
 
 const Staff = {
     async testConnection() {
@@ -10,7 +11,7 @@ const Staff = {
             `SELECT s.id, s.employee_id, s.first_name, s.last_name, s.email,
                     COALESCE(d.department_name, s.department) AS department,
                     s.department_id, d.department_name,
-                    s.position, s.employment_status, s.created_at
+                    s.position, s.employment_status, s.is_senior, s.created_at
              FROM staff s
              LEFT JOIN departments d ON d.id = s.department_id
              ORDER BY s.id DESC`
@@ -23,7 +24,7 @@ const Staff = {
             `SELECT s.id, s.employee_id, s.first_name, s.last_name, s.email,
                     COALESCE(d.department_name, s.department) AS department,
                     s.department_id, d.department_name,
-                    s.position, s.employment_status, s.created_at
+                    s.position, s.employment_status, s.is_senior, s.created_at
              FROM staff s
              LEFT JOIN departments d ON d.id = s.department_id
              WHERE s.id = ?`,
@@ -33,27 +34,20 @@ const Staff = {
     },
 
     async create(data) {
-        const sql = `
-            INSERT INTO staff
-            (employee_id, first_name, last_name, email,
-             department, department_id, position, employment_status, password_hash)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `;
-
-        const values = [
-            data.employee_id,
-            data.first_name,
-            data.last_name,
-            data.email || null,
-            data.department || null,
-            data.department_id,
-            data.position || null,
-            data.employment_status || "Active",
-            data.password_hash
-        ];
-
-        const [result] = await db.execute(sql, values);
-        return result.insertId;
+        const connection = await db.getConnection();
+        let transactionStarted = false;
+        try {
+            await connection.beginTransaction();
+            transactionStarted = true;
+            const staff = await insertStaffWithGeneratedId(connection, data);
+            await connection.commit();
+            return staff;
+        } catch (error) {
+            if (transactionStarted) await connection.rollback();
+            throw error;
+        } finally {
+            connection.release();
+        }
     },
 
     async update(id, data) {
@@ -66,7 +60,7 @@ const Staff = {
                 department = ?,
                 department_id = ?,
                 position = ?,
-                employment_status = ?${data.password_hash ? ", password_hash = ?" : ""}
+                employment_status = ?${data.password_hash ? ", password_hash = ?" : ""}${data.is_senior !== undefined ? ", is_senior = ?" : ""}
             WHERE id = ?
         `;
 
@@ -80,6 +74,7 @@ const Staff = {
             data.position || null,
             data.employment_status || "Active",
             ...(data.password_hash ? [data.password_hash] : []),
+            ...(data.is_senior !== undefined ? [data.is_senior ? 1 : 0] : []),
             id,
         ];
 

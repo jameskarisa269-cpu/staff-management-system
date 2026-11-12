@@ -12,6 +12,7 @@ const emptyForm = {
     email: "",
     department_id: "",
     position: "",
+    is_senior: false,
     employment_status: "Active",
     password: "",
 };
@@ -98,6 +99,7 @@ function Staff() {
             email: employee.email || "",
             department_id: employee.department_id ? String(employee.department_id) : "",
             position: employee.position || "",
+            is_senior: Boolean(employee.is_senior),
             employment_status: employee.employment_status || "Active",
             password: "",
         });
@@ -296,6 +298,7 @@ function Staff() {
                                             <th className="px-5 py-4">Email</th>
                                             <th className="px-5 py-4">Department</th>
                                             <th className="px-5 py-4">Position</th>
+                                            <th className="px-5 py-4">Access</th>
                                             <th className="px-5 py-4">Status</th>
                                             <th className="px-5 py-4">Actions</th>
                                         </tr>
@@ -335,6 +338,16 @@ function Staff() {
                                                     </td>
 
                                                     <td className="px-5 py-4">
+                                                        {employee.is_senior ? (
+                                                            <span className="inline-flex rounded-full bg-violet-100 px-3 py-1 text-xs font-semibold text-violet-800">
+                                                                Senior staff
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-slate-500">Staff</span>
+                                                        )}
+                                                    </td>
+
+                                                    <td className="px-5 py-4">
                                                         <span
                                                             className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
                                                                 employee.employment_status === "Active"
@@ -371,7 +384,7 @@ function Staff() {
                                         ) : (
                                             <tr>
                                                 <td
-                                                    colSpan="7"
+                                                    colSpan="8"
                                                     className="px-6 py-12 text-center text-slate-500"
                                                 >
                                                     {search
@@ -426,23 +439,33 @@ function Staff() {
 
                         <form onSubmit={handleSubmit} className="space-y-5 p-6">
                             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                                <div>
-                                    <label
-                                        htmlFor="employee_id"
-                                        className="mb-2 block text-sm font-medium text-slate-700"
-                                    >
-                                        Employee ID *
-                                    </label>
-                                    <input
-                                        id="employee_id"
-                                        name="employee_id"
-                                        value={formData.employee_id}
-                                        onChange={handleChange}
-                                        placeholder="e.g. EMP002"
-                                        required
-                                        className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/15"
-                                    />
-                                </div>
+                                {editingId ? (
+                                    <div>
+                                        <label
+                                            htmlFor="employee_id"
+                                            className="mb-2 block text-sm font-medium text-slate-700"
+                                        >
+                                            Employee ID *
+                                        </label>
+                                        <input
+                                            id="employee_id"
+                                            name="employee_id"
+                                            value={formData.employee_id}
+                                            onChange={handleChange}
+                                            required
+                                            className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/15"
+                                        />
+                                    </div>
+                                ) : (
+                                    <div>
+                                        <span className="mb-2 block text-sm font-medium text-slate-700">
+                                            Employee ID
+                                        </span>
+                                        <p className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                                            Generated automatically when the staff member is created.
+                                        </p>
+                                    </div>
+                                )}
 
                                 <div>
                                     <label
@@ -537,6 +560,29 @@ function Staff() {
                                         className="w-full rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/15"
                                     />
                                 </div>
+
+                                <label className="flex items-start gap-3 rounded-lg border border-slate-200 p-4 sm:col-span-2">
+                                    <input
+                                        type="checkbox"
+                                        name="is_senior"
+                                        checked={formData.is_senior}
+                                        onChange={(event) =>
+                                            setFormData((previous) => ({
+                                                ...previous,
+                                                is_senior: event.target.checked,
+                                            }))
+                                        }
+                                        className="mt-1 h-4 w-4 accent-[#800000]"
+                                    />
+                                    <span>
+                                        <span className="block text-sm font-semibold text-slate-800">
+                                            Senior staff access
+                                        </span>
+                                        <span className="mt-1 block text-xs text-slate-500">
+                                            Allows this staff member to assign job positions to active staff in their own department.
+                                        </span>
+                                    </span>
+                                </label>
 
                                 <div>
                                     <label

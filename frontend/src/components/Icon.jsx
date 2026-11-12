@@ -60,6 +60,33 @@ const iconPaths = {
   menu: <path d="M4 6h16M4 12h16M4 18h16" />,
   plus: <path d="M12 5v14M5 12h14" />,
   arrowRight: <path d="M5 12h14m-7-7 7 7-7 7" />,
+  search: (
+    <>
+      <circle cx="10.8" cy="10.8" r="6.8" />
+      <path d="m16 16 4.5 4.5" />
+    </>
+  ),
+  checkCircle: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="m8 12 2.5 2.5L16.5 9" />
+    </>
+  ),
+  user: (
+    <>
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4.5 21a7.5 7.5 0 0 1 15 0" />
+    </>
+  ),
+  wrench: (
+    <path d="M14.7 6.3a5 5 0 0 0-6.4 6.4L3.5 17.5a2.1 2.1 0 0 0 3 3l4.8-4.8a5 5 0 0 0 6.4-6.4l-3.1 3.1-3.5-3.5 3.6-2.6Z" />
+  ),
+  refresh: (
+    <>
+      <path d="M20 7v5h-5M4 17v-5h5" />
+      <path d="M5.5 9a7 7 0 0 1 11.6-2L20 12M4 12l2.9 5a7 7 0 0 0 11.6-2" />
+    </>
+  ),
 };
 
 export default function Icon({ name, size = 20, className = "" }) {

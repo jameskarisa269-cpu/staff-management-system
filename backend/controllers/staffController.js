@@ -43,19 +43,17 @@ exports.getStaffById = async (req, res) => {
 
 exports.createStaff = async (req, res) => {
     const {
-        employee_id,
         first_name,
         last_name,
         email,
         department_id,
         position,
         employment_status,
-        password
+        password,
+        is_senior
     } = req.body || {};
 
     if (
-        typeof employee_id !== "string" ||
-        !employee_id.trim() ||
         typeof first_name !== "string" ||
         !first_name.trim() ||
         typeof last_name !== "string" ||
@@ -64,10 +62,11 @@ exports.createStaff = async (req, res) => {
         !email.trim() ||
         typeof password !== "string" ||
         password.length < 8 ||
-        password.length > 128
+        password.length > 128 ||
+        (is_senior !== undefined && typeof is_senior !== "boolean")
     ) {
         return res.status(400).json({
-            message: "Employee ID, first name, last name, email, department, and a password of 8 to 128 characters are required."
+            message: "First name, last name, email, department, and a password of 8 to 128 characters are required."
         });
     }
 
@@ -86,8 +85,7 @@ exports.createStaff = async (req, res) => {
             return res.status(400).json({ message: "Select a registered department." });
         }
 
-        const id = await Staff.create({
-            employee_id: employee_id.trim(),
+        const staff = await Staff.create({
             first_name: first_name.trim(),
             last_name: last_name.trim(),
             email: email.trim(),
@@ -95,17 +93,19 @@ exports.createStaff = async (req, res) => {
             department_id: department.id,
             position,
             employment_status,
-            password_hash: await hashPassword(password)
+            password_hash: await hashPassword(password),
+            is_senior: Boolean(is_senior)
         });
 
         res.status(201).json({
             message: "Staff registered successfully.",
-            id
+            id: staff.id,
+            employee_id: staff.employee_id
         });
     } catch (error) {
         if (error.code === "ER_DUP_ENTRY") {
             return res.status(409).json({
-                message: "Employee ID or email already exists."
+                message: "A staff account with that email already exists."
             });
         }
 
@@ -123,7 +123,8 @@ exports.updateStaff = async (req, res) => {
         department_id,
         position,
         employment_status,
-        password
+        password,
+        is_senior
     } = req.body || {};
 
     if (
@@ -135,6 +136,7 @@ exports.updateStaff = async (req, res) => {
         !last_name.trim() ||
         typeof email !== "string" ||
         !email.trim() ||
+        (is_senior !== undefined && typeof is_senior !== "boolean") ||
         (password !== undefined &&
             password !== "" &&
             (typeof password !== "string" || password.length < 8 || password.length > 128))
@@ -168,7 +170,8 @@ exports.updateStaff = async (req, res) => {
             department_id: department.id,
             position,
             employment_status,
-            password_hash: password ? await hashPassword(password) : null
+            password_hash: password ? await hashPassword(password) : null,
+            is_senior
         });
 
         if (!affectedRows) {

@@ -29,6 +29,7 @@ const notificationRoutes = require("./routes/notificationRoutes");
 const auditLogRoutes = require("./routes/auditlogRoutes");
 const authRoutes = require("./routes/authRoutes");
 const submissionRoutes = require("./routes/submissionRoutes");
+const teamRoutes = require("./routes/teamRoutes");
 const { authenticate, requireRole } = require("./middleware/auth");
 const AuditLog = require("./models/auditlogModel");
 
@@ -38,14 +39,15 @@ const auditedModules = {
     departments: "Department",
     tasks: "Task",
     assets: "Asset",
-    notifications: "Notification"
+    notifications: "Notification",
+    team: "Staff Position"
 };
 
 app.use("/api/auth", authRoutes);
 app.use("/api", authenticate);
 
 app.use((req, res, next) => {
-    const match = req.path.match(/^\/api\/(staff|attendance|departments|tasks|assets|notifications)(?:\/(\d+))?/);
+    const match = req.path.match(/^\/api\/(staff|attendance|departments|tasks|assets|notifications|team)(?:\/(\d+))?/);
     const methods = {
         POST: "Create",
         PUT: "Update",
@@ -83,6 +85,7 @@ app.use("/api/tasks", taskRoutes);
 app.use("/api/assets", requireRole("admin"), assetRoutes);
 app.use("/api/reports", requireRole("admin"), reportRoutes);
 app.use("/api/submissions", submissionRoutes);
+app.use("/api/team", teamRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/audit-logs", requireRole("admin"), auditLogRoutes);
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { apiFetch } from "./services/api";
 import Icon from "./components/Icon";
 import { cleanAssetDescription } from "./utils/displayText";
@@ -32,6 +32,7 @@ export default function Asset() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const searchInputRef = useRef(null);
 
   useEffect(() => {
     fetchAssets();
@@ -252,22 +253,26 @@ export default function Asset() {
     {
       label: "Total Assets",
       value: assets.length,
-      color: "border-blue-500",
+      icon: "chart",
+      tone: "bg-orange-50 text-orange-700",
     },
     {
       label: "Available",
       value: assets.filter((a) => a.status === "Available").length,
-      color: "border-green-500",
+      icon: "checkCircle",
+      tone: "bg-blue-50 text-blue-700",
     },
     {
       label: "Assigned",
       value: assets.filter((a) => a.status === "Assigned").length,
-      color: "border-indigo-500",
+      icon: "user",
+      tone: "bg-violet-50 text-violet-700",
     },
     {
       label: "Under Maintenance",
       value: assets.filter((a) => a.status === "Under Maintenance").length,
-      color: "border-yellow-500",
+      icon: "wrench",
+      tone: "bg-orange-50 text-orange-700",
     },
   ];
 
@@ -287,33 +292,41 @@ export default function Asset() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 text-gray-800 sm:p-6">
+    <div className="min-h-screen bg-slate-100 p-4 text-slate-800 sm:p-6">
       <div className="mx-auto max-w-7xl">
         <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">
-              Asset Management
+            <h1 className="text-2xl font-bold text-slate-900">
+              Manage organizational assets, assignments, and inventory
             </h1>
-            <p className="mt-2 text-sm text-gray-500">
-              Manage organisational assets, assignments, and inventory.
-            </p>
           </div>
 
-          <button
-            type="button"
-            onClick={() => {
-              resetForm();
-              setShowForm(true);
-              setError("");
-              setSuccess("");
-            }}
-            className="rounded-lg bg-blue-600 px-5 py-3 font-semibold text-white hover:bg-blue-700"
-          >
-            <span className="inline-flex items-center gap-2">
-              <Icon name="plus" size={18} />
-              Add Asset
-            </span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => searchInputRef.current?.focus()}
+              aria-label="Focus asset search"
+              title="Search assets"
+              className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+            >
+              <Icon name="search" size={20} />
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                resetForm();
+                setShowForm(true);
+                setError("");
+                setSuccess("");
+              }}
+              className="rounded-lg bg-blue-600 px-5 py-2.5 font-semibold text-white hover:bg-blue-700"
+            >
+              <span className="inline-flex items-center gap-2">
+                <Icon name="plus" size={18} />
+                Add Asset
+              </span>
+            </button>
+          </div>
         </div>
 
         {error && (
@@ -332,10 +345,19 @@ export default function Asset() {
           {stats.map((item) => (
             <div
               key={item.label}
-              className={`rounded-xl border-l-4 ${item.color} bg-white p-5 shadow-sm`}
+              className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm"
             >
-              <p className="text-sm text-gray-500">{item.label}</p>
-              <p className="mt-2 text-3xl font-bold">{item.value}</p>
+              <div className={`rounded-lg p-4 ${item.tone}`}>
+                <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-white/70">
+                  <Icon name={item.icon} size={22} />
+                </span>
+                <p className="mt-4 text-sm font-medium text-slate-600">
+                  {item.label}
+                </p>
+                <p className="mt-1 text-5xl font-bold leading-none text-slate-900">
+                  {item.value}
+                </p>
+              </div>
             </div>
           ))}
         </div>
@@ -539,43 +561,53 @@ export default function Asset() {
           </div>
         )}
 
-        <div className="mb-5 flex flex-col gap-3 sm:flex-row">
-          <input
-            type="search"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search assets, tags, staff..."
-            className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500 sm:flex-1"
-          />
-
-          <select
-            value={filterStatus}
-            onChange={(event) => setFilterStatus(event.target.value)}
-            className="rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm"
-          >
-            <option value="All">All statuses</option>
-            <option value="Available">Available</option>
-            <option value="Assigned">Assigned</option>
-            <option value="Under Maintenance">Under Maintenance</option>
-            <option value="Retired">Retired</option>
-            <option value="Lost">Lost</option>
-          </select>
-
-          <button
-            type="button"
-            onClick={fetchAssets}
-            className="rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm font-semibold hover:bg-gray-100"
-          >
-            Refresh
-          </button>
-        </div>
-
         <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-          <div className="flex items-center justify-between border-b p-4">
-            <h2 className="font-bold">Asset Inventory</h2>
-            <span className="text-sm text-gray-500">
-              {filteredAssets.length} asset(s)
-            </span>
+          <div className="flex flex-col gap-3 border-b border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center justify-between gap-4">
+              <h2 className="text-xl font-bold">Asset Inventory</h2>
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <div className="relative min-w-0 flex-1 sm:w-80">
+                <Icon
+                  name="search"
+                  size={19}
+                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
+                />
+                <input
+                  ref={searchInputRef}
+                  type="search"
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Search assets, tags, staff..."
+                  aria-label="Search assets, tags, or staff"
+                  className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-10 pr-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                />
+              </div>
+
+              <select
+                value={filterStatus}
+                onChange={(event) => setFilterStatus(event.target.value)}
+                aria-label="Filter assets by status"
+                className="rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm"
+              >
+                <option value="All">All statuses</option>
+                <option value="Available">Available</option>
+                <option value="Assigned">Assigned</option>
+                <option value="Under Maintenance">Under Maintenance</option>
+                <option value="Retired">Retired</option>
+                <option value="Lost">Lost</option>
+              </select>
+
+              <button
+                type="button"
+                onClick={fetchAssets}
+                disabled={loading}
+                className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm font-semibold hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <Icon name="refresh" size={16} />
+                {loading ? "Refreshing..." : "Refresh"}
+              </button>
+            </div>
           </div>
 
           {loading ? (
@@ -587,13 +619,13 @@ export default function Asset() {
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[1000px] text-left text-sm">
-                <thead className="bg-gray-100 text-xs uppercase text-gray-600">
+                <thead className="bg-slate-50 text-xs uppercase text-slate-600">
                   <tr>
                     <th className="px-4 py-4">Asset</th>
                     <th className="px-4 py-4">Category</th>
                     <th className="px-4 py-4">Condition</th>
                     <th className="px-4 py-4">Status</th>
-                    <th className="px-4 py-4">Assigned Staff</th>
+                    <th className="px-4 py-4">Assigned To</th>
                     <th className="px-4 py-4">Location</th>
                     <th className="px-4 py-4">Cost</th>
                     <th className="px-4 py-4">Actions</th>
@@ -622,7 +654,13 @@ export default function Asset() {
 
                       <td className="px-4 py-4">{asset.category || "—"}</td>
                       <td className="px-4 py-4">
-                        {asset.asset_condition || "—"}
+                        {asset.asset_condition ? (
+                          <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
+                            {asset.asset_condition}
+                          </span>
+                        ) : (
+                          "—"
+                        )}
                       </td>
 
                       <td className="px-4 py-4">
@@ -636,11 +674,21 @@ export default function Asset() {
                       </td>
 
                       <td className="px-4 py-4">
-                        {asset.assigned_staff_name || "Unassigned"}
-                        {asset.employee_id && (
-                          <p className="mt-1 text-xs text-gray-500">
-                            {asset.employee_id}
-                          </p>
+                        {asset.assigned_staff_name ? (
+                          <>
+                            <span className="font-medium">
+                              {asset.assigned_staff_name}
+                            </span>
+                            {asset.employee_id && (
+                              <p className="mt-1 text-xs text-gray-500">
+                                {asset.employee_id}
+                              </p>
+                            )}
+                          </>
+                        ) : (
+                          <span className="rounded-full bg-slate-200 px-3 py-1 text-xs font-semibold text-slate-600">
+                            Unassigned
+                          </span>
                         )}
                       </td>
 
@@ -699,6 +747,9 @@ export default function Asset() {
             </div>
           )}
         </div>
+        <p className="mt-4 text-sm text-slate-500">
+          Showing {filteredAssets.length} of {assets.length} asset(s)
+        </p>
       </div>
     </div>
   );
