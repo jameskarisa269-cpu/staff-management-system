@@ -3,7 +3,7 @@ import { apiFetch } from "./services/api";
 import Icon from "./components/Icon";
 import { cleanSeedPrefix } from "./utils/displayText";
 
-const API_URL = "http://localhost:5000/api/notifications";
+const API_URL = "/api/notifications";
 
 async function readResponse(response) {
   const contentType = response.headers.get("content-type") || "";

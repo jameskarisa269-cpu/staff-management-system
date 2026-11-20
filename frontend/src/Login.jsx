@@ -1,6 +1,7 @@
 import { useState } from "react";
+import { apiFetch } from "./services/api";
 
-const AUTH_URL = "http://localhost:5000/api/auth";
+const AUTH_URL = "/api/auth";
 
 export default function Login({ onLogin }) {
   const [mode, setMode] = useState("login");
@@ -21,7 +22,7 @@ export default function Login({ onLogin }) {
 
     try {
       const signup = mode === "signup";
-      const response = await fetch(
+      const response = await apiFetch(
         signup ? `${AUTH_URL}/account-requests` : `${AUTH_URL}/login`,
         {
           method: "POST",

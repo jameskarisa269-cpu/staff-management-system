@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "./services/api";
 
-const API_URL = "http://localhost:5000/api/audit-logs";
+const API_URL = "/api/audit-logs";
 const modules = [
   "Staff",
   "Department",

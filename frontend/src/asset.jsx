@@ -3,8 +3,8 @@ import { apiFetch } from "./services/api";
 import Icon from "./components/Icon";
 import { cleanAssetDescription } from "./utils/displayText";
 
-const API_URL = "http://localhost:5000/api/assets";
-const STAFF_URL = "http://localhost:5000/api/staff";
+const API_URL = "/api/assets";
+const STAFF_URL = "/api/staff";
 
 const initialForm = {
   asset_tag: "",

@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "./services/api";
 
-const AUTH_URL = "http://localhost:5000/api/auth/account-requests";
-const DEPARTMENTS_URL = "http://localhost:5000/api/departments";
+const AUTH_URL = "/api/auth/account-requests";
+const DEPARTMENTS_URL = "/api/departments";
 
 async function readResponse(response) {
   const data = await response.json().catch(() => ({}));

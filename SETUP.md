@@ -19,7 +19,18 @@ node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
 
 ## Apply database migrations
 
-After the existing application migrations have been applied, apply:
+The repository does not include the original schema migrations for core tables
+such as `staff`; `013_add_staff_auth_and_department_link.sql` assumes `staff`
+already exists. An empty database cannot be initialized from this repository
+alone. Import the existing application's complete schema and data into TiDB,
+or obtain and apply the missing base schema first.
+
+After the base schema is present, apply only migrations that are not already
+reflected in the database, in numeric order. The numbered migration set also
+contains demo-data scripts (`005`, `006`, `008`, `010`, and `012`); do not run
+those on a production database unless you intentionally want sample records.
+For an existing database, do not rerun migrations that have already been
+applied.
 
 - `backend/migrations/013_add_staff_auth_and_department_link.sql`
 - `backend/migrations/014_create_staff_submissions.sql`
@@ -93,4 +104,85 @@ admin.
 
 Run the backend from `backend` with `node index.js`, then start the Vite
 frontend from `frontend` with `npm.cmd run dev` in PowerShell (or `npm run dev`
-in Command Prompt). Open the URL printed by Vite.
+in Command Prompt). To use the app on a phone, connect the phone and computer
+to the same Wi-Fi network, then open the **Network** URL printed by Vite (for
+example, `http://192.168.1.20:5173`) on the phone. Keep both servers running
+and allow Node.js through the computer's firewall on private networks if asked.
+
+## Deploy with TiDB, Render, and Vercel
+
+### 1. Prepare TiDB
+
+Create a TiDB Cloud database and a database user with access to it. Copy the
+cluster's public hostname, user, password, and database name. Allow the Render
+service to connect to the cluster (for example, configure TiDB's IP access list
+as required by your plan). TiDB Cloud connections use TLS; the Render
+configuration below enables it on port `4000`.
+
+This project expects its original core schema (including the `staff` table) to
+exist before its incremental migrations are applied. The repository does not
+include that base schema, so do not point the app at an empty TiDB database or
+run all migration files blindly. Import your existing app database's complete
+schema and data to TiDB, then apply only the incremental migrations that are
+not already reflected there. Review the migration notes above; the seed scripts
+insert demo records and should be skipped for production unless wanted. If you
+do not have an existing database or its original schema SQL, you will need to
+recover/provide that schema before the app can be deployed.
+
+### 2. Deploy the API to Render
+
+Create a Render Blueprint from this repository and use `render.yaml`, or create
+a Web Service manually with:
+
+- Root Directory: `backend`
+- Build Command: `npm ci`
+- Start Command: `npm start`
+- Health Check Path: `/health`
+
+Set these Render environment variables without committing them:
+
+| Variable | Value |
+| --- | --- |
+| `DB_HOST` | TiDB cluster hostname |
+| `DB_PORT` | `4000` |
+| `DB_USER` | TiDB database username |
+| `DB_PASSWORD` | TiDB database password |
+| `DB_NAME` | TiDB database name |
+| `DB_SSL` | `true` |
+| `ADMIN_EMAIL` | Admin sign-in email |
+| `ADMIN_PASSWORD` | Strong, private admin password |
+| `AUTH_TOKEN_SECRET` | Long random secret (at least 32 random bytes) |
+| `CORS_ORIGINS` | Your Vercel site origin, e.g. `https://your-app.vercel.app` |
+
+Render provides `PORT` automatically. If you also use a Vercel preview domain,
+add its exact HTTPS origin to `CORS_ORIGINS`, separated by a comma. Once the
+service is live, open `https://<your-render-service>.onrender.com/health` and
+confirm it returns `{"status":"ok"}`. Use the service's HTTPS origin as the
+frontend API URL.
+
+### 3. Deploy the frontend to Vercel
+
+Import the repository into Vercel and set the project Root Directory to
+`frontend`. Use `npm run build` as the build command and `dist` as the output
+directory. Add this Vercel environment variable:
+
+| Variable | Value |
+| --- | --- |
+| `VITE_API_URL` | Render API HTTPS origin, without `/api` (e.g. `https://your-api.onrender.com`) |
+
+Redeploy after setting or changing environment variables. `frontend/vercel.json`
+supports client-side route refreshes, and the viewport is configured for phone
+screens. Open the Vercel HTTPS URL on your phone; camera access for QR scanning
+requires HTTPS, which Vercel provides.
+
+Keep `VITE_API_URL` unset for local development so Vite continues to proxy API
+requests to `http://127.0.0.1:5000`.
+
+### Deployment notes
+
+- Never put database credentials or admin secrets in Vercel variables or any
+  `VITE_` variable; Vite variables are included in browser code.
+- Do not commit `.env` files. If a credential was ever pushed to a remote
+  repository, rotate it even after removing the file from the latest version.
+- The database must be reachable from Render; a local TiDB/MySQL instance on
+  your computer will not work for a hosted backend.

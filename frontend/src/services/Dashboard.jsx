@@ -13,7 +13,7 @@ import TeamRoles from "../TeamRoles";
 import Icon from "../components/Icon";
 import { apiFetch } from "./api";
 
-const REPORTS_URL = "http://localhost:5000/api/reports";
+const REPORTS_URL = "/api/reports";
 
 async function fetchDashboardSummary() {
   const response = await apiFetch(`${REPORTS_URL}/dashboard`);

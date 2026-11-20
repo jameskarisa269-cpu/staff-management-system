@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "./services/api";
 
-const SUBMISSIONS_URL = "http://localhost:5000/api/submissions";
+const SUBMISSIONS_URL = "/api/submissions";
 
 function localWeekStart() {
   const date = new Date();
@@ -31,7 +31,7 @@ async function fetchStaffReportData() {
   const [reportsData, briefsData, tasksData] = await Promise.all([
     readResponse(await apiFetch(`${SUBMISSIONS_URL}/reports`)),
     readResponse(await apiFetch(`${SUBMISSIONS_URL}/weekly-briefs`)),
-    readResponse(await apiFetch("http://localhost:5000/api/tasks")),
+    readResponse(await apiFetch("/api/tasks")),
   ]);
   return {
     reports: reportsData.reports || [],

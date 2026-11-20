@@ -4,8 +4,8 @@ import { apiFetch } from "./services/api";
 import Icon from "./components/Icon";
 import { cleanSeedPrefix } from "./utils/displayText";
 
-const API_URL = "http://localhost:5000/api/departments";
-const STAFF_URL = "http://localhost:5000/api/staff";
+const API_URL = "/api/departments";
+const STAFF_URL = "/api/staff";
 
 async function readApiResponse(response) {
   const contentType = response.headers.get("content-type") || "";

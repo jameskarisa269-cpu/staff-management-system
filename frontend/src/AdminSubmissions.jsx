@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "./services/api";
 
-const API_URL = "http://localhost:5000/api/submissions";
+const API_URL = "/api/submissions";
 
 async function readResponse(response) {
   const data = await response.json().catch(() => ({}));

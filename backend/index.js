@@ -9,8 +9,27 @@ require("dotenv").config({
 
 const app = express();
 
-app.use(cors());
+const allowedOrigins = (
+    process.env.CORS_ORIGINS || process.env.CORS_ORIGIN || ""
+).split(",").map((origin) => origin.trim()).filter(Boolean);
+
+app.use(cors({
+    origin(origin, callback) {
+        if (
+            !origin ||
+            process.env.NODE_ENV !== "production" ||
+            allowedOrigins.includes(origin)
+        ) {
+            return callback(null, true);
+        }
+        return callback(null, false);
+    }
+}));
 app.use(express.json());
+
+app.get("/health", (_req, res) => {
+    res.status(200).json({ status: "ok" });
+});
 
 // Temporary diagnostic route
 app.post("/test", (req, res) => {
@@ -90,6 +109,6 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/audit-logs", requireRole("admin"), auditLogRoutes);
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-    console.log(`Backend running on http://localhost:${PORT}`);
+app.listen(PORT, "0.0.0.0", () => {
+    console.log(`Backend running on port ${PORT}`);
 });

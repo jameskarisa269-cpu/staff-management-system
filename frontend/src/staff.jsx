@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { apiFetch } from "./services/api";
 import Icon from "./components/Icon";
 
-const API_URL = "http://localhost:5000/api/staff";
-const DEPARTMENTS_URL = "http://localhost:5000/api/departments";
+const API_URL = "/api/staff";
+const DEPARTMENTS_URL = "/api/departments";
 
 const emptyForm = {
     employee_id: "",

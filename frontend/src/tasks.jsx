@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { apiFetch } from "./services/api";
 import Icon from "./components/Icon";
 
-const API_URL = "http://localhost:5000/api/tasks";
-const STAFF_URL = "http://localhost:5000/api/staff";
+const API_URL = "/api/tasks";
+const STAFF_URL = "/api/staff";
 const statuses = ["Pending", "In Progress", "Completed", "Cancelled"];
 const priorities = ["Low", "Medium", "High", "Urgent"];
 

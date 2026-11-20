@@ -3,7 +3,7 @@ import QRCode from "qrcode";
 import { apiFetch } from "./services/api";
 import Icon from "./components/Icon";
 
-const API_URL = "http://localhost:5000/api/attendance";
+const API_URL = "/api/attendance";
 
 async function requestJSON(url, options = {}) {
   const response = await apiFetch(url, options);
